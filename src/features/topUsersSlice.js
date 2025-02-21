@@ -1,20 +1,20 @@
 import { createSlice } from "@reduxjs/toolkit";
 
 const initialState = {
-    value: [],
+  value: [],
 };
 
 export const topUsersSlice = createSlice({
-    name: "topUsers",
-    initialState,
-    reducers: {
-        setUser: (state, action) => {
-            state.value = action.payload;
-        },
+  name: "topUsers",
+  initialState,
+  reducers: {
+    setUser: (state, action) => {
+      state.value = action.payload;
     },
+  },
 });
 
-export const{ setTopUsers } = topUsersSlice.actions;
+export const { setTopUsers } = topUsersSlice.actions;
 
 export const selectTopUsers = (state) => state.topUsers.value;
 

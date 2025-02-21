@@ -7,8 +7,8 @@ function CalculateNums() {
     const dispatch = useDispatch();
     const user = useSelector(selectUser);
 
-    const [waiting, setWaiting] =useState(true);
-    const [mined, setMined] =useState(0);
+    const [waiting, setWaiting] = useState(true);
+    const [mined, setMined] = useState(0);
     const [remainingTime, setRemainingTime] = useState({
       hours: 6,
       minutes: 0,
@@ -110,12 +110,12 @@ function CalculateNums() {
                 };
                 
                 const updateMinedValue = () => {
-                    const currentMinedValue = calculateMinedValue(
-                      user.miningStartedTime,
-                      user.mineRate  
-                    );
-                    setMined(currentMinedValue);
-                    setWaiting(false);
+                  const currentMinedValue = calculateMinedValue(
+                    user.miningStartedTime,
+                    user.mineRate  
+                  );
+                  setMined(currentMinedValue);
+                  setWaiting(false);
                 };
 
                 const updateRemainingTime = () => {

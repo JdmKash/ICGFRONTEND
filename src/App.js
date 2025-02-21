@@ -9,8 +9,9 @@ import {
   onSnapshot,
   orderBy,
   query,
-  setDoc,
+  // setDoc,
 } from "firebase/firestore";
+import { setDoc } from "firebase/firestore";
 import { useDispatch, useSelector } from "react-redux";
 import { selectUser, setUser } from "./features/userSlice";
 import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
@@ -31,6 +32,9 @@ import BottomNavigation from "./Components/BottomNavigation";
 import { selectCalculated } from "./features/calculateSlice";
 
 function App() {
+const state = useSelector(state => state);
+console.log("Full Redux State:", state);
+
   const dispatch = useDispatch();
   const user = useSelector(selectUser);
   const calculate = useSelector(selectCalculated);
@@ -82,9 +86,7 @@ function App() {
   }, []);
 
   useEffect(() => {
-    const getUser = async () => {
-      if (!webApp?.id) return;
-      
+    const getUser = () => {    
       const unsub = onSnapshot(doc(db, "users", webApp.id), async (docSnap) => {
         if (docSnap.exists()) {
           dispatch(
@@ -101,7 +103,7 @@ function App() {
               balance: docSnap.data().balance,
               mineRate: docSnap.data().mineRate,
               isMining: docSnap.data().isMining,
-              miningStartedTime: docSnap.data().miningStartedTime?.toMillis() 
+              miningStartedTime: docSnap.data().miningStartedTime 
                 ? docSnap.data().miningStartedTime.toMillis()
                 : null,
               daily: {
@@ -114,8 +116,7 @@ function App() {
             })
           );
           console.log(docSnap.data());
-        } 
-        else {
+        } else {
           await setDoc(doc(db, "users", webApp.id), {
             firstName: webApp.firstName,
             lastName: webApp.lastName || null,
@@ -217,7 +218,7 @@ useEffect(() => {
       <Routes>
         <Route path="*" element={<Loading/>} />
         <Route path="/" element={<Home/>} />
-        {user && calculate && <Route path="/daily" element={<Daily/>} />}
+        {user && calculate && <Route path="/daily" element={<Daily />} />}
         {user && calculate && <Route path="/earn" element={<Earn/>} />}
         {user && calculate && <Route path="/airdrops" element={<AirDrops/>} />}
         {user && calculate && <Route path="/refferals" element={<Refferals/>} />}

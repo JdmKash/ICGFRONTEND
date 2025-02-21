@@ -17,8 +17,9 @@ function MiningButton() {
     const dispatch = useDispatch();
 
     const user = useSelector(selectUser);
-    const calculate = useSelector(selectCalculated);
+    console.log("Redux user state:", user); // Debugging
 
+    const calculate = useSelector(selectCalculated);
 
     const[showUpgrade, setShowUpgrade] = useState(false);
     const[claimDisabled, setClaimDisabled] = useState(false);
@@ -27,6 +28,7 @@ function MiningButton() {
 
     const calculateMinedValue = (miningStartedTime, mineRate) => {
         if (!miningStartedTime || !mineRate) return 0;
+        
         const now = Date.now();
         const totalMiningTime = 6 * 60 * 60 * 1000; // 6 hours in milliseconds
         let elapsedTime = now - miningStartedTime;
@@ -116,7 +118,7 @@ function MiningButton() {
         );
         console.log("Mined amount:", minedAmount);
 
-        const newBalance = Number((user.balance + minedAmount).tofixed(2));
+        const newBalance = Number((user.balance + minedAmount).toFixed(2));
 
         await updateDoc(doc(db, "users", user.uid), {
           balance:newBalance,
@@ -187,8 +189,8 @@ function MiningButton() {
         })
       );
            
-      const nextRate = MAX_MINE_RATE.min(
-        addPrecise(user.mineRate, getUpgradeStep(user.minRate)),
+      const nextRate = Math.min(
+        addPrecise(user.mineRate, getUpgradeStep(user.mineRate)),
         MAX_MINE_RATE
       );
       const price = getUpgradePrice(getNextUpgradeRate());
@@ -242,8 +244,8 @@ function MiningButton() {
   const getUpgradeStep = (rate) => {
     if (rate < 0.01) return 0.001;
     if (rate < 0.1) return 0.01;
-    if (rate < 1 ) return 0.1;
-    return Math.pow(10,Math.floor(Math.log10(rate)));
+    if (rate < 1) return 0.1;
+    return Math.pow(10, Math.floor(Math.log10(rate)));
   };
 
   const getUpgradePrice = (nextRate) => {
@@ -251,12 +253,12 @@ function MiningButton() {
   };
   
   const getNextUpgradeRate = () => {
-    const step = getUpgradeStep(user.minRate);
+    const step = getUpgradeStep(user.mineRate);
     return Math.min(addPrecise(user.mineRate, step), MAX_MINE_RATE);
   };
 
-  return (
-    <div className="relative w-full mx-4">;
+  return ( 
+    <div className="relative w-full mx-4">
       <div className="absolute -top-12 left-0 text-white text-lg bg-gray-800 p-2 rounded">
         Balance: ₿ {formatNumber(user.balance)}
       </div>  
@@ -271,7 +273,7 @@ function MiningButton() {
           }`}
           disabled={!calculate.canUpgrade}
         >
-          {user.minRate < MAX_MINE_RATE ? "Upgrade" : "Max Upgrade"}
+          {user.mineRate < MAX_MINE_RATE ? "Upgrade" : "Max Upgrade"}
         </button>    
       )}
 
@@ -326,8 +328,8 @@ function MiningButton() {
              ₿ {formatNumber(calculate.mined)}
            </span>
            <span className="text-white">
-            {String(calculate.remainingTime.hours).padStart(2, "0")}h{""}
-            {String(calculate.remainingTime.minutes).padStart(2, "0")}m{""}
+            {String(calculate.remainingTime.hours).padStart(2, "0")}h{" "}
+            {String(calculate.remainingTime.minutes).padStart(2, "0")}m{" "}
             {String(calculate.remainingTime.seconds).padStart(2, "0")}s
            </span>  
        </div>

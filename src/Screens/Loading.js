@@ -1,10 +1,10 @@
 import React from "react";
-import LoadingModule from "../Components/LoadingModule";
+import LoadingModul from "../Components/LoadingModul";
 import backgroundImage from "../Assets/auction-2.png";
 
 function Loading() {
-    return(
-      <div
+  return(
+    <div
       style={{
         backgroundImage:`url(${backgroundImage})`,
         backgroundPosition: "center",
@@ -21,7 +21,7 @@ function Loading() {
         bottom: "14%",
       }}
     >
-      <LoadingModule size={60} />
+      <LoadingModul size={60} />
     </div>  
   </div>   
  );
