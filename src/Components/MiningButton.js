@@ -79,7 +79,7 @@ function MiningButton() {
       );
       setClaimDisabled(true);
       // Get the current server timestamp
-      const getServerTime = async (db,userId) => {
+      const getServerTime = async (db, userId) => {
         await updateDoc(doc(db, "users", userId), {
           time: serverTimestamp(),
         });
@@ -101,10 +101,10 @@ function MiningButton() {
       };
 
       // Usage
-      const serverNow = await getServerTime(db, user.userId);
+      const serverNow = await getServerTime(db, user.uid);
 
       // Calculated the time difference in milliseconds
-      const timeDifference = serverNow.tomillis() - user.miningStartedTime;
+      const timeDifference = serverNow.toMillis() - user.miningStartedTime;
 
       // Check if 6 hours (21600000 milliseconds) have passed
       if (timeDifference >= 21600000) {
@@ -119,7 +119,7 @@ function MiningButton() {
 
         const newBalance = Number((user.balance + minedAmount).toFixed(2));
 
-        await updateDoc(doc(db, "users", user.userId), {
+        await updateDoc(doc(db, "users", user.uid), {
           balance: newBalance,
           isMining: false,
           miningStartedTime: null,
@@ -198,7 +198,7 @@ function MiningButton() {
       setShowUpgrade(false);
 
       if (user.balance >= price) {
-        await updateDoc(doc(db, "users", user.userId), {
+        await updateDoc(doc(db, "users", user.uid), {
           balace: newBalance,
           mineRate: nextRate,
         });
@@ -258,7 +258,7 @@ function MiningButton() {
 
   return (
     <div className="relative w-full mx-4">
-      <div className="absolute -top12 left-0 text-white text-lg bg-gray-800 p-2 rounded">
+      <div className="absolute -top-12 left-0 text-white text-lg bg-gray-800 p-2 rounded">
         Balance: ₿ {formatNumber(user.balance)}
       </div>
 
@@ -267,7 +267,7 @@ function MiningButton() {
           onClick={() => setShowUpgrade(true)}
           className={`absolute -top-3 right-0 text-xs text-black font-bold py-1 px-2 rounded ${
             calculate.canUpgrade
-              ? "bg-greeen-600 hover:bg-green-700"
+              ? "bg-green-600 hover:bg-green-700"
               : "bg-gray-400 cursor-not-allowed"
           }`}
           disabled={!calculate.canUpgrade}
@@ -283,7 +283,7 @@ function MiningButton() {
         >
           {user.mineRate < MAX_MINE_RATE ? (
             <div>
-              <p className="text-white mb-2 -mt2 text-ceenter">
+              <p className="text-white mb-2 -mt2 text-center">
                 Upgrade to {formatNumber(getNextUpgradeRate())} ₿/s
               </p>
               <button
@@ -310,10 +310,10 @@ function MiningButton() {
         <div className="bg-gray-800 p-4 rounded-lg w-full">
           <div className="flex justify-between items-center mb-2">
             <span className="text-white text-lg">
-              {(user.isMining && "Activateed") || "Deactivated"}
+              {(user.isMining && "Activated") || "Deactivated"}
             </span>
             <div className="text-white">
-              <span className="text-sm">{formatNumber(user.mineRate)} ₿/s</span>\
+              <span className="text-sm">{formatNumber(user.mineRate)} ₿/s</span>
             </div>
           </div>
           <div className="bg-gray-700 h-2 rounded-full mb-2">
@@ -323,7 +323,7 @@ function MiningButton() {
             ></div>
           </div>
           <div className="flex justify-between items-center mb-4">
-            <span className="text-white text-2x1 font-bold">
+            <span className="text-white text-2X1 font-bold">
             ₿ {formatNumber(calculate.mined)}
             </span>
             <span className="text-white">
