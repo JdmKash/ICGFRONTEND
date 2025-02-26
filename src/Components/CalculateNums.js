@@ -23,33 +23,36 @@ function CalculateNums() {
         if (!miningStartedTime) return 0;
 
         const now = Date.now();
-        const totalMiningTime = 6 * 60 * 60 * 1000;
+        const totalMiningTime = 6 * 60 * 60 * 1000; // 6 hours in milliseconds
         const elapsedTime = now - miningStartedTime;
 
         if (elapsedTime >= totalMiningTime) {
             setCanClaim(true);
-            return 100;
+            return 100; // Mining is complete
         }
 
         const progress = (elapsedTime / totalMiningTime) * 100;
-        return Math.min(Math.max(progress, 0), 100);
+        return Math.min(Math.max(progress, 0), 100); // Ensure progress is between
     };
 
     const calculateMinedValue = (miningStartedTime, mineRate) => {
         if (!miningStartedTime || !mineRate) return 0;
 
         const now = Date.now();
-        const totalMiningTime = 6 * 60 * 60 * 1000;
+        const totalMiningTime = 6 * 60 * 60 * 1000; // hours in milliseconds
         let elapsedTime = now - miningStartedTime;
 
         elapsedTime = Math.round(elapsedTime / 1000) * 1000;
 
         if (elapsedTime >= totalMiningTime) {
+          // Mining is complete, return maximum possible mined value
           return mineRate * (totalMiningTime / 1000);
         }
 
+        // Calculate mined value based on elapsed time
         const minedValue = mineRate * (elapsedTime / 1000);
 
+        // Round to 3 decimal places to avoid floating point precision issues
         return Math.round(minedValue * 1000) /1000;
       };  
 
@@ -59,7 +62,7 @@ function CalculateNums() {
         }
 
         const now = Date.now();
-        const totalMiningTime = 6 * 60 * 60 * 1000;
+        const totalMiningTime = 6 * 60 * 60 * 1000; // 6 hours in milliseconds
         const endTime = miningStartedTime + totalMiningTime;
         const remainingTime = Math.max(endTime - now, 0);
 
@@ -104,7 +107,7 @@ function CalculateNums() {
               let worker = null;
 
               const updateFunction = () => {
-                const updateprogress = () => {
+                const updateProgress = () => {
                   const currentProgress = calculateProgress(user.miningStartedTime);
                   setProgress(currentProgress);  
                 };
@@ -131,7 +134,7 @@ function CalculateNums() {
                   }
                 };
 
-                updateprogress();
+                updateProgress();
                 updateMinedValue();
                 updateRemainingTime();
               };

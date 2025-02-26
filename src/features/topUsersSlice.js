@@ -8,7 +8,7 @@ export const topUsersSlice = createSlice({
   name: "topUsers",
   initialState,
   reducers: {
-    setUser: (state, action) => {
+    setTopUsers: (state, action) => {
       state.value = action.payload;
     },
   },
