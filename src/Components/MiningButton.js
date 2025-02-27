@@ -16,32 +16,29 @@ import { setCoinShow } from "../features/coinShowSlice";
 
 function MiningButton() {
   const dispatch = useDispatch();
-
   const user = useSelector(selectUser);
   const calculate = useSelector(selectCalculated);
-
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [claimDisabled, setClaimDisabled] = useState(false);
-
   const MAX_MINE_RATE = 100.0;
+
+  // Early return with loading state if user data or calculate data isn't loaded yet
+  if (!user || !calculate) {
+    return <div className="text-white p-4">Loading mining data...</div>;
+  }
 
   const calculateMinedValue = (minedStartedTime, mineRate) => {
     if (!minedStartedTime || !mineRate) return 0;
-
     const now = Date.now();
     const totalMiningTime = 6 * 60 * 60 * 1000; // 6 hours in milliseconds
     let elapsedTime = now - minedStartedTime;
-
     elapsedTime = Math.round(elapsedTime / 1000) * 1000;
-
     if(elapsedTime >= totalMiningTime) {
       // Mining is complete, return maximum possible mined value
       return mineRate * (totalMiningTime / 1000);
     }
-
     // Calculate mined value based on elapsed time
     const minedValue = mineRate * (elapsedTime / 1000);
-
     // Round to 3 decimal places to avoid floating point precision issues
     return Math.round(minedValue * 1000) / 1000;
   };
@@ -83,11 +80,9 @@ function MiningButton() {
         await updateDoc(doc(db, "users", userId), {
           time: serverTimestamp(),
         });
-
         const checkTime = async () => {
           const docSnap = await getDoc(doc(db, "users", userId));
           const serverTime = docSnap.data()?.time;
-
           if (serverTime) {
             return serverTime; 
           } else {
@@ -96,40 +91,31 @@ function MiningButton() {
             });
           }
         };
-
         return checkTime();
       };
-
       // Usage
       const serverNow = await getServerTime(db, user.uid);
-
       // Calculated the time difference in milliseconds
       const timeDifference = serverNow.toMillis() - user.miningStartedTime;
-
       // Check if 6 hours (21600000 milliseconds) have passed
       if (timeDifference >= 21600000) {
         dispatch(setCoinShow(true));
-
         const minedAmount = calculateMinedValue(
           user.miningStartedTime,
           user.mineRate,
           serverNow
         );
         console.log("Mined amount:", minedAmount);
-
         const newBalance = Number((user.balance + minedAmount).toFixed(2));
-
         await updateDoc(doc(db, "users", user.uid), {
           balance: newBalance,
           isMining: false,
           miningStartedTime: null,
         });
-
         if (user.referredBy) {
           const referralBonus = Number((minedAmount * 0.1).toFixed(2));
           const referredDoc = doc(db, "users", user.referredBy);
           const referrerSnapshot = await getDoc(referredDoc);
-
           if (referrerSnapshot.exists()) {
             const referrerBalance = referrerSnapshot.data().balance;
             const referrerAddedValue =
@@ -187,19 +173,16 @@ function MiningButton() {
           color: "blue",
         })
       );
-
       const nextRate = Math.min(
         addPrecise(user.mineRate, getUpgradeStep(user.mineRate)),
         MAX_MINE_RATE
       );
       const price = getUpgradePrice(getNextUpgradeRate());
       const newBalance = Number((user.balance - price).toFixed(2));
-
       setShowUpgrade(false);
-
       if (user.balance >= price) {
         await updateDoc(doc(db, "users", user.uid), {
-          balace: newBalance,
+          balance: newBalance, // Fixed typo: balace -> balance
           mineRate: nextRate,
         });
       }
@@ -219,23 +202,20 @@ function MiningButton() {
   };
 
   const formatNumber = (num) => {
-    //Convert thenumber to a string with a fixed number of decimal places
+    if (num === undefined || num === null) return "0,00"; // Handle null/undefined values
+    
+    //Convert the number to a string with a fixed number of decimal places
     let numStr = num.toFixed(3);
-
-    // Split the number into integar and decimal parts
+    // Split the number into integer and decimal parts
     let [intPart, decPart] = numStr.split(".");
-
-    // Add thousand separators to the integar part
+    // Add thousand separators to the integer part
     intPart = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-
     // If the number is less that 0.01, keep 3 decimal places
     if (num < 0.01) {
       return `${intPart},${decPart}`;
     }
-
     // For other numbers, keep 2 decimal places
     decPart = decPart.slice(0, 2);
-
     // Always return the formatted number with 2 decimal places
     return `${intPart},${decPart}`;
   };
@@ -247,7 +227,7 @@ function MiningButton() {
     return Math.pow(10, Math.floor(Math.log10(rate)));
   };
 
-  const getUpgradePrice =(nextRate) => {
+  const getUpgradePrice = (nextRate) => {
     return nextRate * 100000;
   };
 
@@ -256,32 +236,42 @@ function MiningButton() {
     return Math.min(addPrecise(user.mineRate, step), MAX_MINE_RATE);
   };
 
+  // Default values for user properties if they don't exist
+  const isMining = user.isMining || false;
+  const mineRate = user.mineRate || 0;
+  const balance = user.balance || 0;
+
+  // Create safe defaults for calculate properties
+  const canUpgrade = calculate.canUpgrade || false;
+  const canClaim = calculate.canClaim || false;
+  const progress = calculate.progress || 0;
+  const mined = calculate.mined || 0;
+  const remainingTime = calculate.remainingTime || { hours: 0, minutes: 0, seconds: 0 };
+
   return (
     <div className="relative w-full mx-4">
       <div className="absolute -top-12 left-0 text-white text-lg bg-gray-800 p-2 rounded">
-        Balance: ₿ {formatNumber(user.balance)}
+        Balance: ₿ {formatNumber(balance)}
       </div>
-
-      {!showUpgrade && !user.isMining && (
+      {!showUpgrade && !isMining && (
         <button
           onClick={() => setShowUpgrade(true)}
           className={`absolute -top-3 right-0 text-xs text-black font-bold py-1 px-2 rounded ${
-            calculate.canUpgrade
+            canUpgrade
               ? "bg-green-600 hover:bg-green-700"
               : "bg-gray-400 cursor-not-allowed"
           }`}
-          disabled={!calculate.canUpgrade}
+          disabled={!canUpgrade}
         >
-          {user.mineRate < MAX_MINE_RATE ? "Upgrade" : "Max Upgrade"}
+          {mineRate < MAX_MINE_RATE ? "Upgrade" : "Max Upgrade"}
         </button>     
       )}  
-
       {showUpgrade && (
         <div
           className="absolute -bottom-[130px] left-0 w-full bg-gray-900 p-4 rounded-lg transform transition-all duration-300 ease-in-out"
           style={{ transform: "translateY(-100%)" }}
         >
-          {user.mineRate < MAX_MINE_RATE ? (
+          {mineRate < MAX_MINE_RATE ? (
             <div>
               <p className="text-white mb-2 -mt2 text-center">
                 Upgrade to {formatNumber(getNextUpgradeRate())} ₿/s
@@ -306,33 +296,32 @@ function MiningButton() {
             </button>   
           </div>  
         )}
-
         <div className="bg-gray-800 p-4 rounded-lg w-full">
           <div className="flex justify-between items-center mb-2">
             <span className="text-white text-lg">
-              {(user.isMining && "Activated") || "Deactivated"}
+              {(isMining && "Activated") || "Deactivated"}
             </span>
             <div className="text-white">
-              <span className="text-sm">{formatNumber(user.mineRate)} ₿/s</span>
+              <span className="text-sm">{formatNumber(mineRate)} ₿/s</span>
             </div>
           </div>
           <div className="bg-gray-700 h-2 rounded-full mb-2">
             <div
               className="bg-blue-500 h-full rounded-full transition-all duration-1000 ease-linear"
-              style={{ width: `${calculate.progress}%` }}
+              style={{ width: `${progress}%` }}
             ></div>
           </div>
           <div className="flex justify-between items-center mb-4">
             <span className="text-white text-2X1 font-bold">
-            ₿ {formatNumber(calculate.mined)}
+            ₿ {formatNumber(mined)}
             </span>
             <span className="text-white">
-              {String(calculate.remainingTime.hours).padStart(2, "0")}h{" "}
-              {String(calculate.remainingTime.minutes).padStart(2, "0")}m{" "}
-              {String(calculate.remainingTime.seconds).padStart(2, "0")}s
+              {String(remainingTime.hours || 0).padStart(2, "0")}h{" "}
+              {String(remainingTime.minutes || 0).padStart(2, "0")}m{" "}
+              {String(remainingTime.seconds || 0).padStart(2, "0")}s
             </span>
           </div>
-          {!user.isMining && !calculate.canClaim && (
+          {!isMining && !canClaim && (
             <button
               onClick={startFarming}
               className="w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
@@ -340,7 +329,7 @@ function MiningButton() {
               Start Mining
             </button>  
           )}
-          {user.isMining && !calculate.canClaim && (
+          {isMining && !canClaim && (
             <button
               disabled
               className="w-full bg-gray-500 text-white font-bold py-2 px-4 rounded cursor-not-allowed"
@@ -348,7 +337,7 @@ function MiningButton() {
               Mining in progress
             </button>  
           )}
-           {calculate.canClaim && (
+           {canClaim && (
             <button
               disabled={claimDisabled}
               onClick={claimRewards}
@@ -363,4 +352,5 @@ function MiningButton() {
       </div>
     );
   }   
-  export default MiningButton;
+  
+export default MiningButton;
