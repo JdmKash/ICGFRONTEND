@@ -19,8 +19,6 @@ function Liders() {
     return `${Math.ceil(100 - percentage)}%`;
   };
   
-  const userTopPercentage = user ? calculateTopPercentage(user.balance) : "N/A";
-  
   const formatNumber = (num) => {
     // Convert the number to a string with a fixed number of decimal places
     let numStr = num.toFixed(3);
