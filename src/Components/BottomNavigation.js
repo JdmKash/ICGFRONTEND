@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import airdrops from "../Assets/apple-touch-icon.png";
-import refferals from "../Assets/telegram.png";
+import refferals from "../Assets/telegramLogo.png";
 import Daily from "../Assets/charge.png";
 import Earn from "../Assets/walletpic.png";
 import Home from "../Assets/pc.png";

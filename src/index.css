@@ -1,3 +1,26 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+body {
+  max-width: 672px;
+  margin-left: auto;
+  margin-right: auto;
+  background-color: #0b0b0b;
+  overflow: hidden;
+  overflow-y: scroll;
+  font-family: Arial (sans-serif);  
+}
+
+.hide-scrollbar {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* Internet explorer 10+ */  
+}
+
+.hide-scrollbar {
+  display: one; /* WebKit */  
+}
+
+.progress-gradient {
+  background: linear-gradient(to right, #00008b, #d692dd, #00ffff);  
+}
