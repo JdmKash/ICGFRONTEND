@@ -3,6 +3,11 @@ import { useSelector } from "react-redux";
 import { selectUser } from "../features/userSlice";
 import { selectTopUsers } from "../features/topUsersSlice";
 
+import React from "react";
+import { useSelector } from "react-redux";
+import { selectUser } from "../features/userSlice";
+import { selectTopUsers } from "../features/topUsersSlice";
+
 function Liders() {
   const user = useSelector(selectUser);
   const topUsers = useSelector(selectTopUsers) || [];
@@ -70,6 +75,9 @@ function Liders() {
         {topUsers.map((topUser, index) => {
           const { id, balance, firstName, lastName, userImage } = topUser;
           
+          // Use the calculateTopPercentage function here if needed
+          const topPercentage = calculateTopPercentage(balance);
+          
           return (
             <div
               key={id || index}
@@ -103,9 +111,13 @@ function Liders() {
                 <p className="text-white font-bold truncate mr-2">
                   {`${firstName || ""} ${lastName || ""}`.trim()}
                 </p>
-                <p className="text-white whitespace-nowrap flex-shrink-0">
-                  ₿ {formatNumber(balance)}
-                </p>
+                <div className="flex items-center">
+                  <p className="text-white whitespace-nowrap flex-shrink-0 mr-2">
+                    ₿ {formatNumber(balance)}
+                  </p>
+                  {/* Optionally display top percentage */}
+                  {/* <p className="text-xs text-gray-400">({topPercentage})</p> */}
+                </div>
               </div>
             </div>
           );
