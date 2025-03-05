@@ -3,7 +3,6 @@ import { useSelector } from "react-redux";
 import { selectUser } from "../features/userSlice";
 import { selectTopUsers } from "../features/topUsersSlice";
 
-
 function Liders() {
   const user = useSelector(selectUser);
   const topUsers = useSelector(selectTopUsers) || [];
