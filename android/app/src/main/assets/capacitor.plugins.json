@@ -1,0 +1,6 @@
+[
+	{
+		"pkg": "capacitor-admob",
+		"classpath": "app.xplatform.capacitor.plugins.AdMob"
+	}
+]

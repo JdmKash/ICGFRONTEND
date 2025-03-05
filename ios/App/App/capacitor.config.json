@@ -1,0 +1,8 @@
+{
+	"appId": "app.netlify.immigrantcoins",
+	"appName": "ImmigrantCoin",
+	"webDir": "public",
+	"packageClassList": [
+		"AdMob"
+	]
+}
