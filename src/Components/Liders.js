@@ -70,8 +70,9 @@ function Liders() {
         {topUsers.map((topUser, index) => {
           const { id, balance, firstName, lastName, userImage } = topUser;
           
-          // Use the calculateTopPercentage function here if needed
-          const topPercentage = calculateTopPercentage(balance);
+          // We're commented out the usage of topPercentage in the render
+          // So either uncomment the line below if you want to use it, or remove the calculation
+          // const topPercentage = calculateTopPercentage(balance);
           
           return (
             <div
@@ -110,8 +111,8 @@ function Liders() {
                   <p className="text-white whitespace-nowrap flex-shrink-0 mr-2">
                     ₿ {formatNumber(balance)}
                   </p>
-                  {/* Optionally display top percentage */}
-                  {/* <p className="text-xs text-gray-400">({topPercentage})</p> */}
+                  {/* If you want to use topPercentage, uncomment the line below */}
+                  {/* <p className="text-xs text-gray-400">({calculateTopPercentage(balance)})</p> */}
                 </div>
               </div>
             </div>
