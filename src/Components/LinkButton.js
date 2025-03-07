@@ -3,6 +3,7 @@ import youtubeLogo from "../Assets/youtubeLogo.png";
 import telegramLogo from "../Assets/telegramLogo.png";
 import xLogo from "../Assets/apple-touch-icon.png";
 import friends from "../Assets/f.png";
+import monetagLogo from "../Assets/f.png"; // Import your Monetag logo
 import checkLogo from "../Assets/checkLogo.png";
 import LoadingModul from "./LoadingModul";
 import { useDispatch, useSelector } from "react-redux";
@@ -13,7 +14,7 @@ import { doc, serverTimestamp, setDoc, Timestamp } from "firebase/firestore";
 import { selectUser } from "../features/userSlice";
 import { useNavigate } from "react-router-dom";
 
-function LinkButton ({ image, name, amount, link}) {
+function LinkButton ({ image, name, amount, link, onClick, disabled }) {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const user = useSelector(selectUser);
@@ -22,6 +23,15 @@ function LinkButton ({ image, name, amount, link}) {
   const [isClaimed, setIsClaimed] = useState(false);
   const [isClicked, setIsClicked] = useState(false);
   const [canClaim, setCanClaim] = useState(false);
+
+  const handleClick = (e) => {
+    if (disabled) return; // Prevent action if disabled
+    if (onClick) {
+      onClick(e);
+    } else {
+      getToLink();
+    }
+  };
 
   const formatNumber = (num) => {
     // Const the number to a string with a fixed number of decimal places
@@ -48,6 +58,43 @@ function LinkButton ({ image, name, amount, link}) {
   const getToLink = async () => {
     if (link === "referral") {
       navigate("/shares");
+    } else if (link === "watch-ad") {
+      // Call Monetag's rewarded popup function
+      if (window.show_9041692) {
+        try {
+          await window.show_9041692('pop')
+            .then(() => {
+              // User watched ad or closed it in interstitial format
+              // Update user's adsWatched count and reward them
+              updateAdWatched();
+            })
+            .catch(e => {
+              // User got error during playing ad
+              console.error("Ad error:", e);
+              dispatch(
+                setShowMessage({
+                  message: "Error loading ad. Please try again!",
+                  color: "red",
+                })
+              );
+            });
+        } catch (error) {
+          console.error("Error with ad:", error);
+          dispatch(
+            setShowMessage({
+              message: "Error with ad. Please try again!",
+              color: "red",
+            })
+          );
+        }
+      } else {
+        dispatch(
+          setShowMessage({
+            message: "Ad service not available. Please try again later!",
+            color: "red",
+          })
+        );
+      }
     } else {
       if (user.links && user.links[link]) {
         window.open(link, "_blank");
@@ -79,6 +126,38 @@ function LinkButton ({ image, name, amount, link}) {
     }
   };
   
+  // Update adsWatched count and reward user after watching an ad
+  const updateAdWatched = async () => {
+    try {
+      const newAdsWatched = (user.adsWatched || 0) + 1;
+      
+      await setDoc(
+        doc(db, "users", user.uid),
+        {
+          adsWatched: newAdsWatched,
+          balance: user.balance + amount,
+        },
+        { merge: true }
+      );
+      
+      dispatch(
+        setShowMessage({
+          message: "Ad watched! Coins added to your balance.",
+          color: "green",
+        })
+      );
+      dispatch(setCoinShow(true));
+    } catch (error) {
+      console.error("Error updating ad watch count:", error);
+      dispatch(
+        setShowMessage({
+          message: "Error updating rewards. Please try again!",
+          color: "red",
+        })
+      );
+    }
+  };
+
   const claimRewards = async () => {
     try {
       dispatch(
@@ -187,17 +266,19 @@ function LinkButton ({ image, name, amount, link}) {
       }
     }, [link, user, dispatch]);
 
-  return (
+   return (
     <div
-      onClick={getToLink}
-      className="bg-gray-900 rounded-xl flex items-center p-2 mb-2 cursor-pointer"
-    > 
+      onClick={handleClick}
+      className={`bg-gray-900 rounded-xl flex items-center p-2 mb-2 ${
+        disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+      }`}
+    >
       <div className="flex items-center justify-center w-[80px]">
         <img
           className="object-contain"
           style={{
-            height: image === "telegram" ? 50 : image === "referral" ? 50 : 60,
-            width: image === "telegram" ? 50 : image === "referral" ? 50 : 60,
+            height: image === "telegram" ? 50 : image === "referral" ? 50 : image === "monetag" ? 50 : 60,
+            width: image === "telegram" ? 50 : image === "referral" ? 50 : image === "monetag" ? 50 : 60,
           }}
           src={
             image === "youtube"
@@ -208,21 +289,23 @@ function LinkButton ({ image, name, amount, link}) {
               ? xLogo
               : image === "referral"
               ? friends
+              : image === "monetag"
+              ? monetagLogo
               : null
-          }  
+          }
           alt="L"
-        />    
-      </div>  
+        />
+      </div>
       <div className="mx-3 w-full">
         <p className="text-sm">{name}</p>
         <p className="font-bold">+₿ {formatNumber(amount)}</p>
       </div>
-      {isClicked && (
+      {!onClick && isClicked && (
         <div>
           {checking ? (
             <div className="mr-2">
               <LoadingModul size={26} />
-            </div>  
+            </div>
           ) : (
             <div className="mr-1" onClick={(e) => e.stopPropagation()}>
               {isClaimed ? (
@@ -230,21 +313,21 @@ function LinkButton ({ image, name, amount, link}) {
                   className="w-12 h-12 object-contain"
                   src={checkLogo}
                   alt="C"
-                />  
+                />
               ) : canClaim ? (
                 <button
                   onClick={claimRewards}
                   className="bg-blue-500 hover:bg-blue-700 text-white text-sm font-bold px-2 py-1 rounded"
                 >
                   Claim
-                </button>  
-            ) : null}
+                </button>
+              ) : null}
+            </div>
+          )}
         </div>
       )}
     </div>
-  )}  
- </div>
-); 
+  );
 }
 
 export default LinkButton;
