@@ -7,21 +7,8 @@ function Liders() {
   const user = useSelector(selectUser);
   const topUsers = useSelector(selectTopUsers) || [];
   
-  const calculateTopPercentage = (userBalance) => {
-    if (!topUsers.length) return "N/A";
-    const topUsersBalance = topUsers[topUsers.length - 1].balance;
-    
-    if (topUsersBalance === 0) return "100%";
-    
-    const percentage = (userBalance / topUsersBalance) * 100;
-    
-    if (percentage >= 99.5) return "1%";
-    if (percentage >= 90) return `${Math.ceil(100 - percentage)}%`;
-    if (percentage >= 80) return "20%";
-    if (percentage >= 50) return "50%";
-    
-    return `${Math.ceil(100 - percentage)}%`;
-  };
+  // Remove the unused function
+  // If you want to keep it, you need to actually use it somewhere
   
   const formatNumber = (num) => {
     // Ensure num is a number
@@ -70,10 +57,6 @@ function Liders() {
         {topUsers.map((topUser, index) => {
           const { id, balance, firstName, lastName, userImage } = topUser;
           
-          // We're commented out the usage of topPercentage in the render
-          // So either uncomment the line below if you want to use it, or remove the calculation
-          // const topPercentage = calculateTopPercentage(balance);
-          
           return (
             <div
               key={id || index}
@@ -111,8 +94,6 @@ function Liders() {
                   <p className="text-white whitespace-nowrap flex-shrink-0 mr-2">
                     ₿ {formatNumber(balance)}
                   </p>
-                  {/* If you want to use topPercentage, uncomment the line below */}
-                  {/* <p className="text-xs text-gray-400">({calculateTopPercentage(balance)})</p> */}
                 </div>
               </div>
             </div>
