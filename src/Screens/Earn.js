@@ -8,6 +8,16 @@ function Earn() {
   const user = useSelector(selectUser);
   const dailyAdLimit = 5; // Set daily ad view limit
 
+  // Function to handle AdMob button click
+  const handleAdMobClick = () => {
+    if (user && user.telegramId) {
+      const adUrl = `/view-ad?user_id=${user.telegramId}`;
+      window.open(adUrl, '_blank', 'width=400,height=600');
+    } else {
+      alert("User ID not found. Please make sure you're logged in correctly.");
+    }
+  };
+
   return (
     <div className="text-white mb-24">
       <div className="flex items-center justify-center py-8">
@@ -31,8 +41,21 @@ function Earn() {
           link={"watch-ad"}
           disabled={user.adsWatched >= dailyAdLimit}
         />
+        
+        {/* New AdMob Ad Task */}
+        <LinkButton
+          image={'admob'}
+          name={
+            user.admobAdsWatched >= dailyAdLimit
+              ? `AdMob limit reached (${dailyAdLimit}/${dailyAdLimit})`
+              : `Watch AdMob Ad (${user.admobAdsWatched || 0}/${dailyAdLimit})`
+          }
+          amount={75000}
+          onClick={handleAdMobClick}
+          disabled={user.admobAdsWatched >= dailyAdLimit}
+        />
 
-        {/* Existing Referral Task */}
+        {/* Referral Task */}
         <LinkButton
           image={'referral'}
           name={
