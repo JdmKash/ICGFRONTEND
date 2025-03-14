@@ -65,6 +65,11 @@ function App() {
         const tg = window.Telegram.WebApp;
         console.log("Telegram WebApp found, calling ready()");
         tg.ready();
+        tg.expand();
+        
+        // Make these more resilient by checking first
+        try { tg.setBackgroundColor("#0b0b0b"); } catch (e) { console.log("Background color error", e); }
+        try { tg.setHeaderColor("#0b0b0b"); } catch (e) { console.log("Header color error", e); }
 
         if (tg?.initDataUnsafe?.user?.id) {
           const userId = tg.initDataUnsafe.user.id;
@@ -79,37 +84,25 @@ function App() {
             languageCode: tg?.initDataUnsafe?.user?.language_code || "en",
           });
           
-          // Set Telegram WebApp UI settings
-          try {
-            console.log("Setting Telegram UI properties");
-            tg.expand();
-            tg.setBackgroundColor("#0b0b0b");
-            tg.setHeaderColor("#0b0b0b");
-          } catch (uiError) {
-            console.error("Error setting Telegram UI:", uiError);
-            // Continue even if UI settings fail
-          }
-          
           setInitStage("telegram-init-success");
         } else {
-          console.log("No Telegram user data, using fallback");
-          // Fallback for testing outside Telegram
+          console.log("Running in browser mode, using fallback data");
           setWebApp({
             id: "82424881123",
-            firstName: "FirstName",
-            lastName: null,
-            username: "@username",
+            firstName: "Dev",
+            lastName: "User",
+            username: "@devuser",
             languageCode: "en",
           });
-          setInitStage("telegram-init-fallback");
+          setInitStage("telegram-init-browser-mode");
         }
       } else {
         console.log("Telegram WebApp not available, using fallback");
         setWebApp({
           id: "82424881123",
-          firstName: "FirstName",
-          lastName: null,
-          username: "@username",
+          firstName: "Test",
+          lastName: "User",
+          username: "@testuser",
           languageCode: "en",
         });
         setInitStage("telegram-init-fallback");
@@ -122,9 +115,9 @@ function App() {
       // Fallback to ensure the app still works
       setWebApp({
         id: "82424881123",
-        firstName: "FirstName",
-        lastName: null,
-        username: "@username",
+        firstName: "Error",
+        lastName: "User",
+        username: "@erroruser",
         languageCode: "en",
       });
     }
@@ -284,6 +277,19 @@ function App() {
         <h2>Initialization Error</h2>
         <p>There was a problem initializing the app: {telegramError}</p>
         <p>Please try refreshing the page or contact support.</p>
+        <div style={{
+          marginTop: '20px',
+          padding: '10px',
+          border: '1px solid #333',
+          borderRadius: '5px',
+          fontSize: '12px'
+        }}>
+          <p>Debug info:</p>
+          <p>- Telegram WebApp available: {window.Telegram?.WebApp ? 'Yes' : 'No'}</p>
+          <p>- Init stage: {initStage}</p>
+          <p>- Error: {telegramError}</p>
+          <p>- Time: {new Date().toISOString()}</p>
+        </div>
       </div>
     );
   }
@@ -322,28 +328,30 @@ function App() {
         </>
       )}
       <Routes>
-        <Route path="*" element={<Loading stage={initStage} />} />
         <Route path="/" element={isLoading ? <Loading stage={initStage} /> : <Home />} />
         {user && calculate && <Route path="/daily" element={<Daily />} />}
         {user && calculate && <Route path="/earn" element={<Earn />} />}
         {user && calculate && <Route path="/airdrops" element={<AirDrops />} />}
         {user && calculate && <Route path="/refferals" element={<Refferals />} />}
+        <Route path="*" element={<Loading stage={initStage} />} />
       </Routes>
       
-      {/* Debug info - remove in production */}
-      <div style={{ 
-        position: 'fixed', 
-        bottom: 0, 
-        left: 0, 
-        right: 0, 
-        backgroundColor: 'rgba(0,0,0,0.7)', 
-        color: 'white', 
-        padding: '4px', 
-        fontSize: '10px', 
-        zIndex: 9999 
-      }}>
-        Stage: {initStage} | Loading: {isLoading ? 'Yes' : 'No'} | User: {user ? 'Yes' : 'No'} | Calculate: {calculate ? 'Yes' : 'No'}
-      </div>
+      {/* Debug info - only show during development */}
+      {process.env.NODE_ENV === 'development' && (
+        <div style={{ 
+          position: 'fixed', 
+          bottom: 0, 
+          left: 0, 
+          right: 0, 
+          backgroundColor: 'rgba(0,0,0,0.7)', 
+          color: 'white', 
+          padding: '4px', 
+          fontSize: '10px', 
+          zIndex: 9999 
+        }}>
+          Stage: {initStage} | Loading: {isLoading ? 'Yes' : 'No'} | User: {user ? 'Yes' : 'No'} | Calculate: {calculate ? 'Yes' : 'No'}
+        </div>
+      )}
     </Router>
   );
 }
