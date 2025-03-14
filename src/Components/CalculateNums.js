@@ -95,11 +95,12 @@ function CalculateNums() {
     };
 
     const getNextUpgradeRate = () => {
+      if (!user || !user.mineRate) return 0;
       const step = getUpgradeStep(user.mineRate);
       return Math.min(addPrecise(user.mineRate, step), MAX_MINE_RATE);
     };
 
-    const canUpgrade =
+    const canUpgrade = user && 
       user.balance >= getUpgradePrice(getNextUpgradeRate()) &&
       user.mineRate < MAX_MINE_RATE;
 
@@ -109,21 +110,21 @@ function CalculateNums() {
 
         const updateFunction = () => {
             const updateProgress = () => {
-                const currentProgress = calculateProgress(user.miningStartedTime);
+                const currentProgress = calculateProgress(user?.miningStartedTime);
                 setProgress(currentProgress);  
             };
             
             const updateMinedValue = () => {
                 const currentMinedValue = calculateMinedValue(
-                    user.miningStartedTime,
-                    user.mineRate  
+                    user?.miningStartedTime,
+                    user?.mineRate  
                 );
                 setMined(currentMinedValue);
                 setWaiting(false);
             };
 
             const updateRemainingTime = () => {
-                const timeLeft = calculateRemainingTime(user.miningStartedTime);
+                const timeLeft = calculateRemainingTime(user?.miningStartedTime);
                 setRemainingTime(timeLeft);
                 
                 if (
@@ -159,7 +160,7 @@ function CalculateNums() {
                 clearInterval(intervalId);
             }
         };
-    }, [user?.isMining, user?.miningStartedTime, user?.mineRate]); 
+    }, [user]); // Added user to dependency array to fix ESLint warning
     
     // Ensure we don't try to access properties of undefined user
     useEffect(() => {
