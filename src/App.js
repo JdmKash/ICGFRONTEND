@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import "./App.css";
 import { db } from "./firebase";
 import {
@@ -53,6 +53,27 @@ function App() {
       return acc;
     }, {});
   };
+
+  // Fetch top users - moved to useCallback to avoid dependency issues
+  const fetchTopUsers = useCallback(async () => {
+    try {
+      console.log("Fetching top users");
+      const usersRef = collection(db, "users");
+      const q = query(usersRef, orderBy("balance", "desc"), limit(50));
+      const querySnapshot = await getDocs(q);
+      const topUsers = querySnapshot.docs.map((docSnap) => ({
+        id: docSnap.id, 
+        balance: docSnap.data().balance,
+        userImage: docSnap.data().userImage,
+        firstName: docSnap.data().firstName,
+        lastName: docSnap.data().lastName,
+      }));
+      dispatch(setTopUsers(topUsers));
+      console.log("Top users fetched successfully");
+    } catch (error) {
+      console.error("Error fetching top users:", error);
+    }
+  }, [dispatch]);
 
   // Safely initialize Telegram WebApp
   useEffect(() => {
@@ -224,28 +245,7 @@ function App() {
       setIsLoading(false);
       setInitStage("firestore-setup-error");
     }
-  }, [dispatch, webApp]); 
-
-  // Fetch top users
-  const fetchTopUsers = async () => {
-    try {
-      console.log("Fetching top users");
-      const usersRef = collection(db, "users");
-      const q = query(usersRef, orderBy("balance", "desc"), limit(50));
-      const querySnapshot = await getDocs(q);
-      const topUsers = querySnapshot.docs.map((docSnap) => ({
-        id: docSnap.id, 
-        balance: docSnap.data().balance,
-        userImage: docSnap.data().userImage,
-        firstName: docSnap.data().firstName,
-        lastName: docSnap.data().lastName,
-      }));
-      dispatch(setTopUsers(topUsers));
-      console.log("Top users fetched successfully");
-    } catch (error) {
-      console.error("Error fetching top users:", error);
-    }
-  };
+  }, [dispatch, webApp, fetchTopUsers]); // Added fetchTopUsers to dependency array
 
   // Handle toast messages
   useEffect(() => {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { selectUser } from '../features/userSlice';
 import { useDispatch, useSelector } from "react-redux";
 import { setCalculated } from "../features/calculateSlice";
@@ -105,8 +105,8 @@ function CalculateNums() {
       user.balance >= getUpgradePrice(getNextUpgradeRate()) &&
       user.mineRate < MAX_MINE_RATE;
 
-    // Update function to be called by interval
-    const updateFunction = () => {
+    // Update function to be called by interval - moved to useCallback
+    const updateFunction = useCallback(() => {
       try {
         if (!user || !user.miningStartedTime) return;
         
@@ -140,7 +140,7 @@ function CalculateNums() {
         setUpdateError(error.message);
         setWaiting(false);
       }
-    };
+    }, [user, calculateProgress, calculateMinedValue, calculateRemainingTime]);
 
     // Use setInterval instead of Web Worker for better compatibility
     useEffect(() => {
@@ -169,7 +169,7 @@ function CalculateNums() {
           console.log("Cleared mining interval");
         }
       };
-    }, [user]); // Include user as dependency to properly handle all user changes
+    }, [user, updateFunction]); // Added updateFunction to dependencies
 
     // Update calculated state in Redux
     useEffect(() => {
