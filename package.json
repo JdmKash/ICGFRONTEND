@@ -1,7 +1,7 @@
 {
   "name": "immigrantcoinfrontend",
   "version": "0.1.0",
-  "private": true,
+  "private": false,
   "dependencies": {
     "@capacitor-community/admob": "^7.0.1",
     "@capacitor/android": "^7.0.1",
