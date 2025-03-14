@@ -2,7 +2,7 @@ import React from "react";
 import LoadingModul from "../Components/LoadingModul";
 import backgroundImage from "../Assets/auction-2.png";
 
-function Loading() {
+function Loading({ stage = "loading" }) {
   // Add error handling for background image loading
   const handleImageError = (e) => {
     console.error("Error loading background image");
@@ -25,16 +25,20 @@ function Loading() {
         style={{
           position: "absolute",
           display: "flex",
+          flexDirection: "column",
           justifyContent: "center",
-          alignItems: "center", // Added for better centering
+          alignItems: "center",
           width: "100%",
-          height: "100%", // Changed to full height for better visibility
-          top: "0", // Position from top instead of bottom
+          height: "100%",
+          top: "0",
         }}
       >
         <div className="text-center">
           <LoadingModul size={60} />
-          <p className="mt-4 text-white">Loading game...</p> {/* Added loading text */}
+          <p className="mt-4 text-white">Loading game...</p>
+          
+          {/* Debug info - shows current loading stage */}
+          <p className="mt-2 text-xs text-gray-400">Stage: {stage}</p>
         </div>
       </div>  
     </div>   

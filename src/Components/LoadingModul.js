@@ -4,6 +4,9 @@ function LoadingModul({ size, theme }) {
   // Default size if not provided
   const spinnerSize = size || 40;
   
+  // Log when component renders
+  console.log("LoadingModul rendering with size:", spinnerSize);
+  
   return (
     <>
       <div className="flex flex-col items-center">
