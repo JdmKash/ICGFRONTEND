@@ -4,6 +4,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { setCalculated } from "../features/calculateSlice";
 
 function CalculateNums() {
+    console.log("CalculateNums component rendered");
     const dispatch = useDispatch();
     const user = useSelector(selectUser);
 

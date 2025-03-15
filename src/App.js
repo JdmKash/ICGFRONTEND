@@ -81,6 +81,32 @@ function App() {
     }
   }, [user, calculate, dispatch]);
   
+  // Force loading to complete after 5 seconds if stuck
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (isLoading && initStage === "user-data-loaded") {
+        console.log("Forcing loading completion - app was stuck on user-data-loaded");
+        setIsLoading(false);
+        
+        // Also ensure calculate state is initialized
+        if (user && !calculate) {
+          dispatch(
+            setCalculated({
+              mined: 0,
+              remainingTime: { hours: 6, minutes: 0, seconds: 0 },
+              progress: 0,
+              canClaim: false,
+              canUpgrade: false,
+              updateError: null,
+            })
+          );
+        }
+      }
+    }, 5000);
+    
+    return () => clearTimeout(timeoutId);
+  }, [isLoading, initStage, user, calculate, dispatch]);
+  
   const processLinks = (links) => {
     if (!links) return {};
     return Object.entries(links).reduce((acc, [key, value]) => {
