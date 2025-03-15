@@ -1,34 +1,23 @@
-import React, { useEffect, useState } from "react";
+// App.js
+import React, { useEffect } from "react";
 import "./App.css";
+import { collection } from "firebase/firestore";
 import { db } from "./firebase";
-import {
-  collection,
-  doc,
-  getDocs,
-  limit,
-  onSnapshot,
-  orderBy,
-  query,
-  setDoc,
-} from "firebase/firestore";
 import { useDispatch, useSelector } from "react-redux";
-import { selectUser, setUser } from "./features/userSlice";
+import { setUser } from "./features/userSlice";
 import { HashRouter as Router, Route, Routes } from "react-router-dom";
 import Home from "./Screens/Home";
 import Daily from "./Screens/Daily";
 import Earn from "./Screens/Earn";
 import AirDrops from "./Screens/airdrops";
 import Refferals from "./Screens/refferals";
-import CalculateNums from "./Components/CalculateNums";
 import CoinAnimation from "./Components/CoinAnimation";
 import { selectShowMessage, setShowMessage } from "./features/messageSlice";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { selectCoinShow } from "./features/coinShowSlice";
-import { setTopUsers } from "./features/topUsersSlice";
-import Loading from "./Screens/Loading";
 import BottomNavigation from "./Components/BottomNavigation";
-import { selectCalculated, setCalculated } from "./features/calculateSlice";
+import { setCalculated } from "./features/calculateSlice";
 
 // Simple calculate component included directly to avoid import issues
 const CalculateNumsSimple = () => {
@@ -54,14 +43,8 @@ const CalculateNumsSimple = () => {
 
 function App() {
   const dispatch = useDispatch();
-  const user = useSelector(selectUser);
-  const calculate = useSelector(selectCalculated);
   const message = useSelector(selectShowMessage);
   const coinShow = useSelector(selectCoinShow);
-
-  // IMPORTANT: Set isLoading to false by default to skip loading screen
-  const [isLoading, setIsLoading] = useState(false);
-  const [initStage, setInitStage] = useState("completed");
   
   // Initialize default user and calculate state immediately
   useEffect(() => {
@@ -106,7 +89,7 @@ function App() {
     
     // Try to connect to Firebase in the background
     try {
-      const usersRef = collection(db, "users");
+      collection(db, "users");
       console.log("Firebase connection initialized");
     } catch (error) {
       console.error("Firebase connection error:", error);
@@ -128,37 +111,35 @@ function App() {
 
   return (
     <Router>
-      {<BottomNavigation />}
-      {
-        <>
-          <CalculateNumsSimple />
-          <ToastContainer
-            style={{
-              width: "calc(100% - 40px)", 
-              maxWidth: "none",
-              left: "20px",
-              right: "20px",
-              top: "20px",
-              height: "20px",
-            }}
-            toastStyle={{
-              minHeight: "20px",
-              padding: "0px 10px",
-              paddingBottom: "4px",
-              backgroundColor:
-                message?.color === "green"
-                  ? "#00c000"
-                  : message?.color === "blue"
-                  ? "#1d4ed8"
-                  : "red",
-              color: "white",
-              borderRadius: "6px",
-              marginBottom: "4px",
-            }}
-          />
-          <CoinAnimation showAnimation={coinShow} />
-        </>
-      }
+      <BottomNavigation />
+      <>
+        <CalculateNumsSimple />
+        <ToastContainer
+          style={{
+            width: "calc(100% - 40px)", 
+            maxWidth: "none",
+            left: "20px",
+            right: "20px",
+            top: "20px",
+            height: "20px",
+          }}
+          toastStyle={{
+            minHeight: "20px",
+            padding: "0px 10px",
+            paddingBottom: "4px",
+            backgroundColor:
+              message?.color === "green"
+                ? "#00c000"
+                : message?.color === "blue"
+                ? "#1d4ed8"
+                : "red",
+            color: "white",
+            borderRadius: "6px",
+            marginBottom: "4px",
+          }}
+        />
+        <CoinAnimation showAnimation={coinShow} />
+      </>
       <Routes>
         <Route path="*" element={<Home />} />
         <Route path="/" element={<Home />} />
