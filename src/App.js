@@ -13,7 +13,7 @@ import {
 } from "firebase/firestore";
 import { useDispatch, useSelector } from "react-redux";
 import { selectUser, setUser } from "./features/userSlice";
-import { HashRouter as Router, Route, Routes } from "react-router-dom"; // Using HashRouter for better compatibility in Telegram WebView
+import { HashRouter as Router, Route, Routes } from "react-router-dom";
 import Home from "./Screens/Home";
 import Daily from "./Screens/Daily";
 import Earn from "./Screens/Earn";
@@ -54,7 +54,7 @@ function App() {
     }, {});
   };
 
-  // Fetch top users - moved to useCallback to avoid dependency issues
+  // Fetch top users - useCallback to prevent dependency issues
   const fetchTopUsers = useCallback(async () => {
     try {
       console.log("Fetching top users");
@@ -93,33 +93,24 @@ function App() {
     setInitStage("telegram-init-start");
     
     try {
-      // Check if Telegram WebApp is available
       if (window.Telegram && window.Telegram.WebApp) {
         const tg = window.Telegram.WebApp;
         console.log("Telegram WebApp found, calling ready()");
-        
-        // Call ready before trying to access properties
         tg.ready();
         tg.expand();
-        
-        // Log Telegram WebApp version
         console.log("Telegram WebApp version:", tg.version);
-        
-        // Only apply color settings for versions below 6.0
         if (tg.version && parseFloat(tg.version) < 6.0) {
           try { tg.setBackgroundColor("#0b0b0b"); } catch (e) { console.log("Background color error", e); }
           try { tg.setHeaderColor("#0b0b0b"); } catch (e) { console.log("Header color error", e); }
         } else {
           console.log("Skipping color settings for Telegram WebApp version 6.0+");
         }
-
-        // Wait a bit longer for Telegram WebApp to fully initialize (increased timeout to 1000ms)
+        // Increase delay to 1000ms to allow Telegram data to load
         setTimeout(() => {
           if (tg?.initDataUnsafe?.user?.id) {
             const userId = tg.initDataUnsafe.user.id;
             const userIdString = userId.toString();
             console.log("Telegram user identified:", userIdString);
-            
             setWebApp({
               id: userIdString,
               firstName: tg?.initDataUnsafe?.user?.first_name || "User",
@@ -127,7 +118,6 @@ function App() {
               username: tg?.initDataUnsafe?.user?.username || null,
               languageCode: tg?.initDataUnsafe?.user?.language_code || "en",
             });
-            
             setInitStage("telegram-init-success");
           } else {
             console.log("Running in browser mode, using fallback data");
@@ -140,7 +130,7 @@ function App() {
             });
             setInitStage("telegram-init-browser-mode");
           }
-        }, 1000); // Increased delay to 1000ms
+        }, 1000);
       } else {
         console.log("Telegram WebApp not available, using fallback");
         setWebApp({
@@ -156,8 +146,6 @@ function App() {
       console.error("Error initializing Telegram WebApp:", error);
       setTelegramError(error.message);
       setInitStage("telegram-init-error");
-      
-      // Fallback to ensure the app still works
       setWebApp({
         id: "82424881123",
         firstName: "Error",
@@ -171,12 +159,9 @@ function App() {
   // Connect to Firestore once Telegram is initialized
   useEffect(() => {
     if (!webApp) return;
-    
     console.log("Telegram user available, connecting to Firestore");
     setInitStage("firestore-connect");
-    
     let unsub = null;
-    
     try {
       console.log("Setting up Firestore listener for user:", webApp.id);
       unsub = onSnapshot(
@@ -186,15 +171,12 @@ function App() {
             if (docSnap.exists()) {
               console.log("User document exists, updating Redux state");
               const userData = docSnap.data();
-              
-              // Log important state before update
               console.log("User data before Redux update:", {
                 uid: webApp.id,
                 balance: userData.balance,
                 mineRate: userData.mineRate,
                 isMining: userData.isMining
               });
-              
               dispatch(
                 setUser({
                   uid: webApp.id,
@@ -221,8 +203,6 @@ function App() {
                   links: processLinks(userData.links),
                 })
               );
-              
-              // Set loading to false immediately after Redux update
               setIsLoading(false);
               setInitStage("user-data-loaded");
             } else {
@@ -245,7 +225,6 @@ function App() {
                   },
                   links: null,
                 });
-                
                 console.log("New user created successfully");
                 setIsLoading(false);
                 setInitStage("new-user-created");
@@ -267,16 +246,12 @@ function App() {
           setInitStage("firestore-listener-error");
         }
       );
-      
-      // Fetch top users in the background
       fetchTopUsers();
-      
     } catch (error) {
       console.error("Error setting up Firestore connection:", error);
       setIsLoading(false);
       setInitStage("firestore-setup-error");
     }
-    
     return () => { 
       if (unsub) {
         console.log("Cleaning up Firestore listener");
@@ -285,13 +260,11 @@ function App() {
     };
   }, [dispatch, webApp, fetchTopUsers]);
 
-  // Log Redux state changes
   useEffect(() => {
     console.log("Current Redux State - User:", user ? "exists" : "null");
     console.log("Current Redux State - Calculate:", calculate ? "true" : "false");
   }, [user, calculate]);
 
-  // Handle toast messages
   useEffect(() => {
     if (message) {
       toast(message.message, {
@@ -305,7 +278,6 @@ function App() {
     }
   }, [message, dispatch]);
 
-  // Simplified component structure with error handling
   const renderMainContent = () => {
     try {
       if (isLoading) {
@@ -313,7 +285,7 @@ function App() {
       }
       
       return (
-        <>
+        <div style={{ background: "#fff", color: "#000", minHeight: "100vh" }}>
           {user && calculate && <BottomNavigation />}
           {user && (
             <>
@@ -353,7 +325,7 @@ function App() {
             {user && <Route path="/refferals" element={<Refferals />} />}
             <Route path="*" element={isLoading ? <Loading stage={initStage} /> : <Home />} />
           </Routes>
-        </>
+        </div>
       );
     } catch (error) {
       console.error("Error rendering main content:", error);
@@ -369,7 +341,6 @@ function App() {
     }
   };
 
-  // Show error message if Telegram initialization failed
   if (telegramError) {
     return (
       <div style={{ 
@@ -419,8 +390,6 @@ function App() {
   return (
     <Router>
       {renderMainContent()}
-      
-      {/* Debug info - visible in all environments for troubleshooting */}
       <div style={{ 
         position: 'fixed', 
         bottom: 0, 
