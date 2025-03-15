@@ -75,6 +75,19 @@ function App() {
     }
   }, [dispatch]);
 
+  // Add emergency timeout to prevent infinite loading
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (isLoading) {
+        console.log("Emergency timeout triggered - forcing load completion");
+        setIsLoading(false);
+        setInitStage("emergency-timeout");
+      }
+    }, 10000); // 10 seconds timeout
+    
+    return () => clearTimeout(timeoutId);
+  }, [isLoading]);
+
   // Safely initialize Telegram WebApp
   useEffect(() => {
     console.log("Initializing Telegram WebApp");
@@ -85,38 +98,50 @@ function App() {
       if (window.Telegram && window.Telegram.WebApp) {
         const tg = window.Telegram.WebApp;
         console.log("Telegram WebApp found, calling ready()");
+        
+        // Call ready before trying to access properties
         tg.ready();
         tg.expand();
         
-        // Make these more resilient by checking first
-        try { tg.setBackgroundColor("#0b0b0b"); } catch (e) { console.log("Background color error", e); }
-        try { tg.setHeaderColor("#0b0b0b"); } catch (e) { console.log("Header color error", e); }
-
-        if (tg?.initDataUnsafe?.user?.id) {
-          const userId = tg.initDataUnsafe.user.id;
-          const userIdString = userId.toString();
-          console.log("Telegram user identified:", userIdString);
-          
-          setWebApp({
-            id: userIdString,
-            firstName: tg?.initDataUnsafe?.user?.first_name || "User",
-            lastName: tg?.initDataUnsafe?.user?.last_name || null,
-            username: tg?.initDataUnsafe?.user?.username || null,
-            languageCode: tg?.initDataUnsafe?.user?.language_code || "en",
-          });
-          
-          setInitStage("telegram-init-success");
+        // Log Telegram WebApp version
+        console.log("Telegram WebApp version:", tg.version);
+        
+        // Only apply color settings for versions below 6.0
+        if (tg.version && parseFloat(tg.version) < 6.0) {
+          try { tg.setBackgroundColor("#0b0b0b"); } catch (e) { console.log("Background color error", e); }
+          try { tg.setHeaderColor("#0b0b0b"); } catch (e) { console.log("Header color error", e); }
         } else {
-          console.log("Running in browser mode, using fallback data");
-          setWebApp({
-            id: "82424881123",
-            firstName: "Dev",
-            lastName: "User",
-            username: "@devuser",
-            languageCode: "en",
-          });
-          setInitStage("telegram-init-browser-mode");
+          console.log("Skipping color settings for Telegram WebApp version 6.0+");
         }
+
+        // Wait a moment for Telegram WebApp to fully initialize
+        setTimeout(() => {
+          if (tg?.initDataUnsafe?.user?.id) {
+            const userId = tg.initDataUnsafe.user.id;
+            const userIdString = userId.toString();
+            console.log("Telegram user identified:", userIdString);
+            
+            setWebApp({
+              id: userIdString,
+              firstName: tg?.initDataUnsafe?.user?.first_name || "User",
+              lastName: tg?.initDataUnsafe?.user?.last_name || null,
+              username: tg?.initDataUnsafe?.user?.username || null,
+              languageCode: tg?.initDataUnsafe?.user?.language_code || "en",
+            });
+            
+            setInitStage("telegram-init-success");
+          } else {
+            console.log("Running in browser mode, using fallback data");
+            setWebApp({
+              id: "82424881123",
+              firstName: "Dev",
+              lastName: "User",
+              username: "@devuser",
+              languageCode: "en",
+            });
+            setInitStage("telegram-init-browser-mode");
+          }
+        }, 500); // Give it half a second to fully initialize
       } else {
         console.log("Telegram WebApp not available, using fallback");
         setWebApp({
@@ -151,15 +176,25 @@ function App() {
     console.log("Telegram user available, connecting to Firestore");
     setInitStage("firestore-connect");
     
+    let unsub = null;
+    
     try {
       console.log("Setting up Firestore listener for user:", webApp.id);
-      const unsub = onSnapshot(
+      unsub = onSnapshot(
         doc(db, "users", webApp.id),
         async (docSnap) => {
           try {
             if (docSnap.exists()) {
               console.log("User document exists, updating Redux state");
               const userData = docSnap.data();
+              
+              // Log important state before update
+              console.log("User data before Redux update:", {
+                uid: webApp.id,
+                balance: userData.balance,
+                mineRate: userData.mineRate,
+                isMining: userData.isMining
+              });
               
               dispatch(
                 setUser({
@@ -188,6 +223,7 @@ function App() {
                 })
               );
               
+              // Set loading to false immediately after Redux update
               setIsLoading(false);
               setInitStage("user-data-loaded");
             } else {
@@ -236,16 +272,25 @@ function App() {
       // Fetch top users in the background
       fetchTopUsers();
       
-      return () => { 
-        console.log("Cleaning up Firestore listener");
-        unsub();
-      };
     } catch (error) {
       console.error("Error setting up Firestore connection:", error);
       setIsLoading(false);
       setInitStage("firestore-setup-error");
     }
-  }, [dispatch, webApp, fetchTopUsers]); // Added fetchTopUsers to dependency array
+    
+    return () => { 
+      if (unsub) {
+        console.log("Cleaning up Firestore listener");
+        unsub();
+      }
+    };
+  }, [dispatch, webApp, fetchTopUsers]);
+
+  // Log Redux state changes
+  useEffect(() => {
+    console.log("Current Redux State - User:", user ? "exists" : "null");
+    console.log("Current Redux State - Calculate:", calculate ? "true" : "false");
+  }, [user, calculate]);
 
   // Handle toast messages
   useEffect(() => {
@@ -260,6 +305,70 @@ function App() {
       dispatch(setShowMessage(null));
     }
   }, [message, dispatch]);
+
+  // Simplified component structure with error handling
+  const renderMainContent = () => {
+    try {
+      if (isLoading) {
+        return <Loading stage={initStage} />;
+      }
+      
+      return (
+        <>
+          {user && calculate && <BottomNavigation />}
+          {user && (
+            <>
+              <CalculateNums />
+              <ToastContainer
+                style={{
+                  width: "calc(100% - 40px)",
+                  maxWidth: "none",
+                  left: "20px",
+                  right: "20px",
+                  top: "20px",
+                  height: "20px",
+                }}
+                toastStyle={{
+                  minHeight: "20px",
+                  padding: "0px 10px",
+                  paddingBottom: "4px",
+                  backgroundColor:
+                    message?.color === "green"
+                      ? "#00c000"
+                      : message?.color === "blue"
+                      ? "#1d4ed8"
+                      : "red",
+                  color: "white",
+                  borderRadius: "6px",
+                  marginBottom: "4px",
+                }}
+              />
+              <CoinAnimation showAnimation={coinShow} />
+            </>
+          )}
+          <Routes>
+            <Route path="/" element={isLoading ? <Loading stage={initStage} /> : <Home />} />
+            {user && <Route path="/daily" element={<Daily />} />}
+            {user && <Route path="/earn" element={<Earn />} />}
+            {user && <Route path="/airdrops" element={<AirDrops />} />}
+            {user && <Route path="/refferals" element={<Refferals />} />}
+            <Route path="*" element={isLoading ? <Loading stage={initStage} /> : <Home />} />
+          </Routes>
+        </>
+      );
+    } catch (error) {
+      console.error("Error rendering main content:", error);
+      return (
+        <div style={{ padding: '20px', color: 'white', backgroundColor: '#0b0b0b', height: '100vh' }}>
+          <h2>Rendering Error</h2>
+          <p>There was a problem rendering the app: {error.message}</p>
+          <button onClick={() => window.location.reload()}>
+            Refresh Page
+          </button>
+        </div>
+      );
+    }
+  };
 
   // Show error message if Telegram initialization failed
   if (telegramError) {
@@ -277,6 +386,20 @@ function App() {
         <h2>Initialization Error</h2>
         <p>There was a problem initializing the app: {telegramError}</p>
         <p>Please try refreshing the page or contact support.</p>
+        <button 
+          onClick={() => window.location.reload()}
+          style={{
+            padding: '10px 20px',
+            margin: '20px 0',
+            backgroundColor: '#1d4ed8',
+            border: 'none',
+            borderRadius: '4px',
+            color: 'white',
+            cursor: 'pointer'
+          }}
+        >
+          Refresh Page
+        </button>
         <div style={{
           marginTop: '20px',
           padding: '10px',
@@ -296,62 +419,22 @@ function App() {
 
   return (
     <Router>
-      {user && calculate && <BottomNavigation />}
-      {user && (
-        <>
-          <CalculateNums />
-          <ToastContainer
-            style={{
-              width: "calc(100% - 40px)", // 40px is the total of left and right 
-              maxWidth: "none",
-              left: "20px",
-              right: "20px",
-              top: "20px",
-              height: "20px",
-            }}
-            toastStyle={{
-              minHeight: "20px", // Adjust this value to change the height
-              padding: "0px 10px", // Adjust padding to further control size
-              paddingBottom: "4px",
-              backgroundColor:
-                message?.color === "green"
-                  ? "#00c000"
-                  : message?.color === "blue"
-                  ? "#1d4ed8"
-                  : "red",
-              color: "white",
-              borderRadius: "6px",
-              marginBottom: "4px",
-            }}
-          />
-          <CoinAnimation showAnimation={coinShow} />
-        </>
-      )}
-      <Routes>
-        <Route path="/" element={isLoading ? <Loading stage={initStage} /> : <Home />} />
-        {user && calculate && <Route path="/daily" element={<Daily />} />}
-        {user && calculate && <Route path="/earn" element={<Earn />} />}
-        {user && calculate && <Route path="/airdrops" element={<AirDrops />} />}
-        {user && calculate && <Route path="/refferals" element={<Refferals />} />}
-        <Route path="*" element={<Loading stage={initStage} />} />
-      </Routes>
+      {renderMainContent()}
       
-      {/* Debug info - only show during development */}
-      {process.env.NODE_ENV === 'development' && (
-        <div style={{ 
-          position: 'fixed', 
-          bottom: 0, 
-          left: 0, 
-          right: 0, 
-          backgroundColor: 'rgba(0,0,0,0.7)', 
-          color: 'white', 
-          padding: '4px', 
-          fontSize: '10px', 
-          zIndex: 9999 
-        }}>
-          Stage: {initStage} | Loading: {isLoading ? 'Yes' : 'No'} | User: {user ? 'Yes' : 'No'} | Calculate: {calculate ? 'Yes' : 'No'}
-        </div>
-      )}
+      {/* Debug info - visible in all environments for troubleshooting */}
+      <div style={{ 
+        position: 'fixed', 
+        bottom: 0, 
+        left: 0, 
+        right: 0, 
+        backgroundColor: 'rgba(0,0,0,0.7)', 
+        color: 'white', 
+        padding: '4px', 
+        fontSize: '10px', 
+        zIndex: 9999 
+      }}>
+        Stage: {initStage} | Loading: {isLoading ? 'Yes' : 'No'} | User: {user ? 'Yes' : 'No'} | Calculate: {calculate ? 'Yes' : 'No'}
+      </div>
     </Router>
   );
 }
