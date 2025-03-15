@@ -7,7 +7,7 @@ function CalculateNums() {
     const dispatch = useDispatch();
     const user = useSelector(selectUser);
 
-    const [waiting, setWaiting] = useState(false); // Changed from true to false to ensure initial dispatch
+    // Removed the unused 'waiting' state variable
     const [mined, setMined] = useState(0);
     const [remainingTime, setRemainingTime] = useState({
       hours: 6,
@@ -126,7 +126,6 @@ function CalculateNums() {
       try {
         if (!user || !user.miningStartedTime) {
           // Even if there's no mining data, still update the calculate state
-          setWaiting(false);
           return;
         }
         
@@ -153,12 +152,10 @@ function CalculateNums() {
           setRemainingTime({ hours: 0, minutes: 0, seconds: 0 });
         }
         
-        setWaiting(false);
         setUpdateError(null);
       } catch (error) {
         console.error("Error in update function:", error);
         setUpdateError(error.message);
-        setWaiting(false);
       }
     }, [user, calculateProgress, calculateMinedValue, calculateRemainingTime]);
 
@@ -178,7 +175,6 @@ function CalculateNums() {
         setMined(0);
         setRemainingTime({ hours: 6, minutes: 0, seconds: 0 });
         setCanClaim(false);
-        setWaiting(false); // Ensure waiting is false even if not mining
         console.log("Mining not active, reset values");
       }
       
