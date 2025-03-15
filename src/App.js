@@ -126,8 +126,26 @@ function App() {
       if (window.Telegram && window.Telegram.WebApp) {
         const tg = window.Telegram.WebApp;
         tg.ready();
+        console.log("Telegram WebApp available, initData:", tg.initData);
+        console.log("Telegram user data:", tg?.initDataUnsafe?.user);
+
+        // Force fallback after 3 seconds if Telegram data isn't available
+        const telegramTimeout = setTimeout(() => {
+          if (!tg?.initDataUnsafe?.user?.id) {
+            console.log("Telegram data timeout - using fallback");
+            setWebApp({
+              id: "82424881123",
+              firstName: "FirstName",
+              lastName: null,
+              username: "@username",
+              languageCode: "en",
+            });
+            setInitStage("telegram-init-fallback");
+          }
+        }, 3000);
 
         if (tg?.initDataUnsafe?.user?.id) {
+          clearTimeout(telegramTimeout);
           const userId = tg.initDataUnsafe.user.id;
           const userIdString = userId.toString();
           
@@ -150,7 +168,7 @@ function App() {
           }
           setInitStage("telegram-init-success");
         } else {
-          console.log("Using fallback user data (not in Telegram)");
+          console.log("No Telegram user data found, using fallback");
           setWebApp({
             id: "82424881123",
             firstName: "FirstName",
