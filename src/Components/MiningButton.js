@@ -401,4 +401,10 @@ function MiningButton() {
             isProcessing ? "bg-gray-500" : "bg-blue-500 hover:bg-blue-600"
           } text-white font-bold py-2 px-4 rounded`}
         >
-          {isProcessing ? "Processing..." : `Start Mining
+          {isProcessing ? "Processing..." : "Start Mining"}
+        </button>
+      )}
+      
+      {!showUpgrade && isMining && (
+        <div className="w-full flex flex-col items-center justify-center space-y-2">
+          <div className="w-full bg-gray-700 rounded-full h-4">
