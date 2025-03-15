@@ -1,8 +1,13 @@
-// App.js
 import React, { useEffect } from "react";
 import "./App.css";
-import { collection } from "firebase/firestore";
 import { db } from "./firebase";
+import {
+  collection,
+  query,
+  getDocs,
+  orderBy,
+  limit
+} from "firebase/firestore";
 import { useDispatch, useSelector } from "react-redux";
 import { setUser } from "./features/userSlice";
 import { HashRouter as Router, Route, Routes } from "react-router-dom";
@@ -18,6 +23,7 @@ import "react-toastify/dist/ReactToastify.css";
 import { selectCoinShow } from "./features/coinShowSlice";
 import BottomNavigation from "./Components/BottomNavigation";
 import { setCalculated } from "./features/calculateSlice";
+import { setTopUsers } from "./features/topUsersSlice";
 
 // Simple calculate component included directly to avoid import issues
 const CalculateNumsSimple = () => {
@@ -63,7 +69,7 @@ function App() {
         referrals: {},
         referredBy: null,
         isPremium: false,
-        balance: 0,
+        balance: 100, // Give some initial balance
         mineRate: 0.001,
         isMining: false,
         miningStartedTime: null,
@@ -94,6 +100,38 @@ function App() {
     } catch (error) {
       console.error("Firebase connection error:", error);
     }
+  }, [dispatch]);
+
+  // Fetch top users for leaderboard
+  useEffect(() => {
+    const fetchTopUsers = async () => {
+      try {
+        const usersRef = collection(db, "users");
+        const q = query(usersRef, orderBy("balance", "desc"), limit(50));
+        const querySnapshot = await getDocs(q);
+        const topUsers = querySnapshot.docs.map((docSnap) => ({
+          id: docSnap.id, 
+          balance: docSnap.data().balance,
+          userImage: docSnap.data().userImage,
+          firstName: docSnap.data().firstName,
+          lastName: docSnap.data().lastName,
+        }));
+        dispatch(setTopUsers(topUsers));
+        console.log("Fetched top users:", topUsers.length);
+      } catch (error) {
+        console.error("Error fetching top users:", error);
+        // Provide fallback data if fetch fails
+        dispatch(setTopUsers([
+          {id: "default1", balance: 1000, firstName: "Top", lastName: "User"},
+          {id: "default2", balance: 800, firstName: "Second", lastName: "User"},
+          {id: "default3", balance: 600, firstName: "Third", lastName: "User"},
+          {id: "default4", balance: 400, firstName: "Fourth", lastName: "User"},
+          {id: "default5", balance: 200, firstName: "Fifth", lastName: "User"}
+        ]));
+      }
+    };
+
+    fetchTopUsers();
   }, [dispatch]);
 
   useEffect(() => {
