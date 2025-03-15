@@ -20,6 +20,7 @@ function MiningButton() {
   const calculate = useSelector(selectCalculated);
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [claimDisabled, setClaimDisabled] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false); // Add loading state
   const MAX_MINE_RATE = 100.0;
 
   // Early return with loading state if user data or calculate data isn't loaded yet
@@ -44,6 +45,9 @@ function MiningButton() {
   };
 
   const startFarming = async () => {
+    if (isProcessing) return; // Prevent multiple clicks
+    
+    setIsProcessing(true);
     try {
       dispatch(
         setShowMessage({
@@ -51,22 +55,51 @@ function MiningButton() {
           color: "blue",
         })
       );
-      await updateDoc(doc(db, "users", user.uid), {
+      
+      // First check if user is already mining to prevent duplicate mining sessions
+      const userRef = doc(db, "users", user.uid);
+      const userSnap = await getDoc(userRef);
+      
+      if (userSnap.exists() && userSnap.data().isMining) {
+        dispatch(
+          setShowMessage({
+            message: "Mining is already in progress!",
+            color: "yellow",
+          })
+        );
+        setIsProcessing(false);
+        return;
+      }
+      
+      await updateDoc(userRef, {
         isMining: true,
         miningStartedTime: serverTimestamp(),
       });
+      
+      dispatch(
+        setShowMessage({
+          message: "Mining started successfully!",
+          color: "green",
+        })
+      );
     } catch (error) {
       console.error("Error starting farming:", error);
       dispatch(
         setShowMessage({
-          message: "Error. Please try again!",
+          message: `Error: ${error.message || "Please try again!"}`,
           color: "red",
         })
       );
+    } finally {
+      setIsProcessing(false);
     }
   };
 
   const claimRewards = async () => {
+    if (claimDisabled || isProcessing) return; // Prevent multiple clicks
+    
+    setClaimDisabled(true);
+    setIsProcessing(true);
     try {
       dispatch(
         setShowMessage({
@@ -74,58 +107,83 @@ function MiningButton() {
           color: "green",
         })
       );
-      setClaimDisabled(true);
-      // Get the current server timestamp
-      const getServerTime = async (db, userId) => {
-        await updateDoc(doc(db, "users", userId), {
-          time: serverTimestamp(),
-        });
-        const checkTime = async () => {
-          const docSnap = await getDoc(doc(db, "users", userId));
-          const serverTime = docSnap.data()?.time;
-          if (serverTime) {
-            return serverTime; 
-          } else {
-            return new Promise((resolve) => {
-              setTimeout(() => resolve(checkTime()), 1000);
-            });
-          }
-        };
-        return checkTime();
-      };
-      // Usage
-      const serverNow = await getServerTime(db, user.uid);
-      // Calculated the time difference in milliseconds
-      const timeDifference = serverNow.toMillis() - user.miningStartedTime;
+      
+      // Reference to user document
+      const userRef = doc(db, "users", user.uid);
+      
+      // First, verify the user is actually mining
+      const userSnap = await getDoc(userRef);
+      if (!userSnap.exists() || !userSnap.data().isMining) {
+        dispatch(
+          setShowMessage({
+            message: "No active mining session found!",
+            color: "red",
+          })
+        );
+        setClaimDisabled(false);
+        setIsProcessing(false);
+        return;
+      }
+      
+      // Get server timestamp more reliably
+      await updateDoc(userRef, { 
+        timeCheck: serverTimestamp() 
+      });
+      
+      // Wait a moment to ensure the server timestamp is saved
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Get the updated document with server timestamp
+      const updatedSnap = await getDoc(userRef);
+      const serverNow = updatedSnap.data().timeCheck;
+      
+      if (!serverNow) {
+        throw new Error("Could not retrieve server time");
+      }
+      
+      // Get mining start time
+      const miningStartedTime = updatedSnap.data().miningStartedTime;
+      
+      if (!miningStartedTime) {
+        throw new Error("Mining start time not found");
+      }
+      
+      // Calculate time difference in milliseconds
+      const timeDifference = serverNow.toMillis() - miningStartedTime.toMillis();
+      
       // Check if 6 hours (21600000 milliseconds) have passed
       if (timeDifference >= 21600000) {
         dispatch(setCoinShow(true));
-        const minedAmount = calculateMinedValue(
-          user.miningStartedTime,
-          user.mineRate,
-          serverNow
-        );
-        console.log("Mined amount:", minedAmount);
-        const newBalance = Number((user.balance + minedAmount).toFixed(2));
-        await updateDoc(doc(db, "users", user.uid), {
+        
+        // Calculate mined amount - note we're using the server timestamp objects directly
+        const minedAmount = updatedSnap.data().mineRate * (21600000 / 1000);
+        const roundedMinedAmount = Math.round(minedAmount * 1000) / 1000;
+        
+        console.log("Mined amount:", roundedMinedAmount);
+        
+        const newBalance = Number((updatedSnap.data().balance + roundedMinedAmount).toFixed(2));
+        
+        await updateDoc(userRef, {
           balance: newBalance,
           isMining: false,
           miningStartedTime: null,
         });
-        if (user.referredBy) {
-          const referralBonus = Number((minedAmount * 0.1).toFixed(2));
-          const referredDoc = doc(db, "users", user.referredBy);
+        
+        // Handle referral bonus if applicable
+        const referredBy = updatedSnap.data().referredBy;
+        if (referredBy) {
+          const referralBonus = Number((roundedMinedAmount * 0.1).toFixed(2));
+          const referredDoc = doc(db, "users", referredBy);
           const referrerSnapshot = await getDoc(referredDoc);
+          
           if (referrerSnapshot.exists()) {
             const referrerBalance = referrerSnapshot.data().balance;
-            const referrerAddedValue =
-              referrerSnapshot.data().referrals[user.uid].addedValue;
-            const updatedBalance = Number(
-              (referrerBalance + referralBonus).toFixed(2)
-            );
-            const updatedAddedValue = Number(
-              (referrerAddedValue + referralBonus).toFixed(2)
-            );
+            const referrerReferrals = referrerSnapshot.data().referrals || {};
+            const referralData = referrerReferrals[user.uid] || { addedValue: 0 };
+            const referrerAddedValue = referralData.addedValue;
+            
+            const updatedBalance = Number((referrerBalance + referralBonus).toFixed(2));
+            const updatedAddedValue = Number((referrerAddedValue + referralBonus).toFixed(2));
             
             await setDoc(
               referredDoc,
@@ -137,63 +195,99 @@ function MiningButton() {
                 },
                 balance: updatedBalance,
               },
-              {merge: true }
+              { merge: true }
             );
           }
         }
-        setClaimDisabled(false);
-      } else {
-        console.log("Not enough time has passed to claim rewards");
-        // Optionally, you can show a message to the user
+        
         dispatch(
           setShowMessage({
-            message: "error. Please try again!",
-            color: "red",
+            message: `Successfully claimed ${roundedMinedAmount.toFixed(3)} coins!`,
+            color: "green",
           })
         );
+      } else {
+        console.log("Not enough time has passed to claim rewards");
+        const hoursLeft = Math.floor((21600000 - timeDifference) / 3600000);
+        const minutesLeft = Math.floor(((21600000 - timeDifference) % 3600000) / 60000);
+        
+        dispatch(
+          setShowMessage({
+            message: `Mining not complete yet. ${hoursLeft}h ${minutesLeft}m remaining.`,
+            color: "yellow",
+          })
+        );
+        dispatch(setCoinShow(false));
       }
     } catch (error) {
       console.error("Error claiming rewards:", error);
       dispatch(
         setShowMessage({
-          message: "Error. Please try again!",
-          color: "red", 
+          message: `Error: ${error.message || "Please try again!"}`,
+          color: "red",
         })
       );
       dispatch(setCoinShow(false));
+    } finally {
       setClaimDisabled(false);
+      setIsProcessing(false);
     }
   };
 
   const upgradeMinerate = async () => {
+    if (isProcessing) return; // Prevent multiple clicks
+    
+    setIsProcessing(true);
     try {
+      const nextRate = Math.min(
+        addPrecise(user.mineRate, getUpgradeStep(user.mineRate)),
+        MAX_MINE_RATE
+      );
+      const price = getUpgradePrice(nextRate);
+      
+      // Verify balance is sufficient before proceeding
+      if (user.balance < price) {
+        dispatch(
+          setShowMessage({
+            message: "Insufficient balance for upgrade!",
+            color: "red",
+          })
+        );
+        setIsProcessing(false);
+        return;
+      }
+      
       dispatch(
         setShowMessage({
           message: "Upgrading in progress...",
           color: "blue",
         })
       );
-      const nextRate = Math.min(
-        addPrecise(user.mineRate, getUpgradeStep(user.mineRate)),
-        MAX_MINE_RATE
-      );
-      const price = getUpgradePrice(getNextUpgradeRate());
+      
       const newBalance = Number((user.balance - price).toFixed(2));
       setShowUpgrade(false);
-      if (user.balance >= price) {
-        await updateDoc(doc(db, "users", user.uid), {
-          balance: newBalance, // Fixed typo: balace -> balance
-          mineRate: nextRate,
-        });
-      }
+      
+      await updateDoc(doc(db, "users", user.uid), {
+        balance: newBalance,
+        mineRate: nextRate,
+      });
+      
+      dispatch(
+        setShowMessage({
+          message: `Mine rate upgraded to ${formatNumber(nextRate)} ₿/s!`,
+          color: "green",
+        })
+      );
     } catch (error) {
       console.error("Error upgrading mine rate:", error);
       dispatch(
         setShowMessage({
-          message: "Error. Please try again!",
+          message: `Error: ${error.message || "Please try again!"}`,
           color: "red",
         })
       );
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -261,7 +355,7 @@ function MiningButton() {
               ? "bg-green-600 hover:bg-green-700"
               : "bg-gray-400 cursor-not-allowed"
           }`}
-          disabled={!canUpgrade}
+          disabled={!canUpgrade || isProcessing}
         >
           {mineRate < MAX_MINE_RATE ? "Upgrade" : "Max Upgrade"}
         </button>     
@@ -278,9 +372,10 @@ function MiningButton() {
               </p>
               <button
                 onClick={upgradeMinerate}
-                className="w-full bg-yellow-500 hover:bg-yellow-600 text-black font-bold py-2 px-4 rounded"
-             >
-                Cost: ₿ {formatNumber(getUpgradePrice(getNextUpgradeRate()))}
+                disabled={isProcessing}
+                className={`w-full ${isProcessing ? 'bg-gray-500' : 'bg-yellow-500 hover:bg-yellow-600'} text-black font-bold py-2 px-4 rounded`}
+              >
+                {isProcessing ? 'Processing...' : `Cost: ₿ ${formatNumber(getUpgradePrice(getNextUpgradeRate()))}`}
               </button>
             </div>   
           ) : ( 
@@ -290,67 +385,7 @@ function MiningButton() {
           )}
           <button
             onClick={() => setShowUpgrade(false)}
+            disabled={isProcessing}
             className="w-full mt-2 bg-red-500 text-white font-bold py-2 px-4 rounded"
           >
             Close
-            </button>   
-          </div>  
-        )}
-        <div className="bg-gray-800 p-4 rounded-lg w-full">
-          <div className="flex justify-between items-center mb-2">
-            <span className="text-white text-lg">
-              {(isMining && "Activated") || "Deactivated"}
-            </span>
-            <div className="text-white">
-              <span className="text-sm">{formatNumber(mineRate)} ₿/s</span>
-            </div>
-          </div>
-          <div className="bg-gray-700 h-2 rounded-full mb-2">
-            <div
-              className="bg-blue-500 h-full rounded-full transition-all duration-1000 ease-linear"
-              style={{ width: `${progress}%` }}
-            ></div>
-          </div>
-          <div className="flex justify-between items-center mb-4">
-            <span className="text-white text-2X1 font-bold">
-            ₿ {formatNumber(mined)}
-            </span>
-            <span className="text-white">
-              {String(remainingTime.hours || 0).padStart(2, "0")}h{" "}
-              {String(remainingTime.minutes || 0).padStart(2, "0")}m{" "}
-              {String(remainingTime.seconds || 0).padStart(2, "0")}s
-            </span>
-          </div>
-          {!isMining && !canClaim && (
-            <button
-              onClick={startFarming}
-              className="w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-            >
-              Start Mining
-            </button>  
-          )}
-          {isMining && !canClaim && (
-            <button
-              disabled
-              className="w-full bg-gray-500 text-white font-bold py-2 px-4 rounded cursor-not-allowed"
-            >
-              Mining in progress
-            </button>  
-          )}
-           {canClaim && (
-            <button
-              disabled={claimDisabled}
-              onClick={claimRewards}
-              className={`w-full ${
-                claimDisabled ? "bg-gray-500" : "bg-green-500 hover:bg-green-700"
-              } text-white font-bold py-2 px-4 rounded`}
-            >
-              Claim Rewards
-            </button>  
-          )}
-        </div>  
-      </div>
-    );
-  }   
-  
-export default MiningButton;
