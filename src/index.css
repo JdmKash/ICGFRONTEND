@@ -9,7 +9,7 @@ body {
   background-color: #0b0b0b;
   overflow: hidden;
   overflow-y: scroll;
-  font-family: Arial (sans-serif);  
+  font-family: Arial, sans-serif;  
 }
 
 .hide-scrollbar {
@@ -17,8 +17,8 @@ body {
   -ms-overflow-style: none; /* Internet explorer 10+ */  
 }
 
-.hide-scrollbar {
-  display: one; /* WebKit */  
+.hide-scrollbar::-webkit-scrollbar {
+  display: none; /* WebKit */  
 }
 
 .progress-gradient {
