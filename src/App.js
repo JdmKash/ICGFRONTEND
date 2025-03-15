@@ -13,7 +13,7 @@ import {
 } from "firebase/firestore";
 import { useDispatch, useSelector } from "react-redux";
 import { selectUser, setUser } from "./features/userSlice";
-import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
+import { HashRouter as Router, Route, Routes } from "react-router-dom"; // Using HashRouter for better compatibility in Telegram WebView
 import Home from "./Screens/Home";
 import Daily from "./Screens/Daily";
 import Earn from "./Screens/Earn";
@@ -84,7 +84,6 @@ function App() {
         setInitStage("emergency-timeout");
       }
     }, 10000); // 10 seconds timeout
-    
     return () => clearTimeout(timeoutId);
   }, [isLoading]);
 
@@ -114,7 +113,7 @@ function App() {
           console.log("Skipping color settings for Telegram WebApp version 6.0+");
         }
 
-        // Wait a moment for Telegram WebApp to fully initialize
+        // Wait a bit longer for Telegram WebApp to fully initialize (increased timeout to 1000ms)
         setTimeout(() => {
           if (tg?.initDataUnsafe?.user?.id) {
             const userId = tg.initDataUnsafe.user.id;
@@ -141,7 +140,7 @@ function App() {
             });
             setInitStage("telegram-init-browser-mode");
           }
-        }, 500); // Give it half a second to fully initialize
+        }, 1000); // Increased delay to 1000ms
       } else {
         console.log("Telegram WebApp not available, using fallback");
         setWebApp({
