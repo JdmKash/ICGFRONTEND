@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import "./App.css";
 import { db } from "./firebase";
 import {
@@ -37,15 +37,10 @@ function App() {
   const message = useSelector(selectShowMessage);
   const coinShow = useSelector(selectCoinShow);
 
-  // Set debugMode to true for testing. When true, the app renders a static message.
-  const debugMode = false;
-
   const [webApp, setWebApp] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [telegramError, setTelegramError] = useState(null);
-  const [initStage, setInitStage] = useState("initializing");
-
-  // Function to safely process links object
+  const [telegramInitError, setTelegramInitError] = useState(null);
+  
   const processLinks = (links) => {
     if (!links) return {};
     return Object.entries(links).reduce((acc, [key, value]) => {
@@ -57,215 +52,166 @@ function App() {
     }, {});
   };
 
-  // Fetch top users
-  const fetchTopUsers = useCallback(async () => {
-    try {
-      console.log("Fetching top users");
-      const usersRef = collection(db, "users");
-      const q = query(usersRef, orderBy("balance", "desc"), limit(50));
-      const querySnapshot = await getDocs(q);
-      const topUsers = querySnapshot.docs.map((docSnap) => ({
-        id: docSnap.id,
-        balance: docSnap.data().balance,
-        userImage: docSnap.data().userImage,
-        firstName: docSnap.data().firstName,
-        lastName: docSnap.data().lastName,
-      }));
-      dispatch(setTopUsers(topUsers));
-      console.log("Top users fetched successfully");
-    } catch (error) {
-      console.error("Error fetching top users:", error);
-    }
-  }, [dispatch]);
-
-  // Emergency timeout to prevent infinite loading
+  // Safely initialize Telegram WebApp
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      if (isLoading) {
-        console.log("Emergency timeout triggered - forcing load completion");
-        setIsLoading(false);
-        setInitStage("emergency-timeout");
-      }
-    }, 10000);
-    return () => clearTimeout(timeoutId);
-  }, [isLoading]);
-
-  // Initialize Telegram WebApp
-  useEffect(() => {
-    console.log("Initializing Telegram WebApp");
-    setInitStage("telegram-init-start");
     try {
+      // Check if Telegram WebApp is available
       if (window.Telegram && window.Telegram.WebApp) {
         const tg = window.Telegram.WebApp;
-        console.log("Telegram WebApp found, calling ready()");
         tg.ready();
-        tg.expand();
-        console.log("Telegram WebApp version:", tg.version);
-        if (tg.version && parseFloat(tg.version) < 6.0) {
-          try { tg.setBackgroundColor("#0b0b0b"); } catch (e) { console.log("Background color error", e); }
-          try { tg.setHeaderColor("#0b0b0b"); } catch (e) { console.log("Header color error", e); }
-        } else {
-          console.log("Skipping color settings for Telegram WebApp version 6.0+");
-        }
-        // Increase delay to allow Telegram data to load
-        setTimeout(() => {
-          if (tg?.initDataUnsafe?.user?.id) {
-            const userId = tg.initDataUnsafe.user.id;
-            const userIdString = userId.toString();
-            console.log("Telegram user identified:", userIdString);
-            setWebApp({
-              id: userIdString,
-              firstName: tg?.initDataUnsafe?.user?.first_name || "User",
-              lastName: tg?.initDataUnsafe?.user?.last_name || null,
-              username: tg?.initDataUnsafe?.user?.username || null,
-              languageCode: tg?.initDataUnsafe?.user?.language_code || "en",
-            });
-            setInitStage("telegram-init-success");
-          } else {
-            console.log("Running in browser mode, using fallback data");
-            setWebApp({
-              id: "82424881123",
-              firstName: "Dev",
-              lastName: "User",
-              username: "@devuser",
-              languageCode: "en",
-            });
-            setInitStage("telegram-init-browser-mode");
+
+        if (tg?.initDataUnsafe?.user?.id) {
+          const userId = tg.initDataUnsafe.user.id;
+          const userIdString = userId.toString();
+          
+          setWebApp({
+            id: userIdString,
+            firstName: tg?.initDataUnsafe?.user?.first_name,
+            lastName: tg?.initDataUnsafe?.user?.last_name,
+            username: tg?.initDataUnsafe?.user?.username,
+            languageCode: tg?.initDataUnsafe?.user?.language_code,
+          });
+          
+          // Set Telegram WebApp UI settings
+          try {
+            tg.expand();
+            tg.setBackgroundColor("#0b0b0b");
+            tg.setHeaderColor("#0b0b0b");
+          } catch (uiError) {
+            console.error("Error setting Telegram UI:", uiError);
+            // Continue even if UI settings fail
           }
-        }, 1000);
+        } else {
+          console.log("Using fallback user data (not in Telegram)");
+          setWebApp({
+            id: "82424881123",
+            firstName: "FirstName",
+            lastName: null,
+            username: "@username",
+            languageCode: "en",
+          });
+        }
       } else {
         console.log("Telegram WebApp not available, using fallback");
         setWebApp({
           id: "82424881123",
-          firstName: "Test",
-          lastName: "User",
-          username: "@testuser",
+          firstName: "FirstName",
+          lastName: null,
+          username: "@username",
           languageCode: "en",
         });
-        setInitStage("telegram-init-fallback");
       }
     } catch (error) {
       console.error("Error initializing Telegram WebApp:", error);
-      setTelegramError(error.message);
-      setInitStage("telegram-init-error");
+      setTelegramInitError(error.message);
+      // Fallback to ensure the app still works
       setWebApp({
         id: "82424881123",
-        firstName: "Error",
-        lastName: "User",
-        username: "@erroruser",
+        firstName: "FirstName",
+        lastName: null,
+        username: "@username",
         languageCode: "en",
       });
     }
   }, []);
 
-  // Connect to Firestore once Telegram is initialized
   useEffect(() => {
-    if (!webApp) return;
-    console.log("Telegram user available, connecting to Firestore");
-    setInitStage("firestore-connect");
-    let unsub = null;
-    try {
-      console.log("Setting up Firestore listener for user:", webApp.id);
-      unsub = onSnapshot(
-        doc(db, "users", webApp.id),
-        async (docSnap) => {
-          try {
-            if (docSnap.exists()) {
-              console.log("User document exists, updating Redux state");
-              const userData = docSnap.data();
-              console.log("User data before Redux update:", {
+    //Listening to User
+    const getUser = () => {    
+      try {
+        const unsub = onSnapshot(doc(db, "users", webApp.id), async (docSnap) => {
+          if (docSnap.exists()) {
+            dispatch(
+              setUser({
                 uid: webApp.id,
-                balance: userData.balance,
-                mineRate: userData.mineRate,
-                isMining: userData.isMining,
-              });
-              dispatch(
-                setUser({
-                  uid: webApp.id,
-                  userImage: userData.userImage,
-                  firstName: userData.firstName,
-                  lastName: userData.lastName,
-                  userName: userData.username,
-                  languageCode: userData.languageCode,
-                  referrals: userData.referrals || {},
-                  referredBy: userData.referredBy,
-                  isPremium: userData.isPremium,
-                  balance: userData.balance,
-                  mineRate: userData.mineRate,
-                  isMining: userData.isMining,
-                  miningStartedTime: userData.miningStartedTime
-                    ? userData.miningStartedTime.toMillis()
+                userImage: docSnap.data().userImage,
+                firstName: docSnap.data().firstName,
+                lastName: docSnap.data().lastName,
+                userName: docSnap.data().username,
+                languageCode: docSnap.data().languageCode,
+                referrals: docSnap.data().referrals || {},
+                referredBy: docSnap.data().referredBy,
+                isPremium: docSnap.data().isPremium,
+                balance: docSnap.data().balance,
+                mineRate: docSnap.data().mineRate,
+                isMining: docSnap.data().isMining,
+                miningStartedTime: docSnap.data().miningStartedTime 
+                  ? docSnap.data().miningStartedTime.toMillis()
+                  : null,
+                daily: {
+                  claimedTime: docSnap.data().daily?.claimedTime
+                    ? docSnap.data().daily.claimedTime.toMillis() 
                     : null,
-                  daily: {
-                    claimedTime: userData.daily?.claimedTime
-                      ? userData.daily.claimedTime.toMillis()
-                      : null,
-                    claimedDay: userData.daily?.claimedDay || 0,
-                  },
-                  links: processLinks(userData.links),
-                })
-              );
-              setIsLoading(false);
-              setInitStage("user-data-loaded");
-            } else {
-              console.log("User document doesn't exist, creating new user");
-              try {
-                await setDoc(doc(db, "users", webApp.id), {
-                  firstName: webApp.firstName,
-                  lastName: webApp.lastName || null,
-                  username: webApp.username || null,
-                  languageCode: webApp.languageCode,
-                  referrals: {},
-                  referredBy: null,
-                  balance: 0,
-                  mineRate: 0.001,
-                  isMining: false,
-                  miningStartedTime: null,
-                  daily: {
-                    claimedTime: null,
-                    claimedDay: 0,
-                  },
-                  links: null,
-                });
-                console.log("New user created successfully");
-                setIsLoading(false);
-                setInitStage("new-user-created");
-              } catch (createError) {
-                console.error("Error creating new user:", createError);
-                setIsLoading(false);
-                setInitStage("user-creation-error");
-              }
-            }
-          } catch (docError) {
-            console.error("Error processing user document:", docError);
+                  claimedDay: docSnap.data().daily?.claimedDay || 0,
+                },
+                links: processLinks(docSnap.data().links),
+              })
+            );
             setIsLoading(false);
-            setInitStage("doc-processing-error");
+          } 
+          else {
+            try {
+              await setDoc(doc(db, "users", webApp.id), {
+                firstName: webApp.firstName,
+                lastName: webApp.lastName || null,
+                username: webApp.username || null,
+                languageCode: webApp.languageCode,
+                referrals: {},
+                referredBy: null,
+                balance: 0,
+                mineRate: 0.001,
+                isMining: false,
+                miningStartedTime: null,
+                daily: {
+                  claimedTime: null,
+                  claimedDay: 0,
+                },
+                links: null,
+              });
+              setIsLoading(false);
+            } catch (error) {
+              console.error("Error creating new user:", error);
+              setIsLoading(false);
+            }
           }
-        },
-        (error) => {
-          console.error("Firestore listener error:", error);
-          setIsLoading(false);
-          setInitStage("firestore-listener-error");
-        }
-      );
-      fetchTopUsers();
-    } catch (error) {
-      console.error("Error setting up Firestore connection:", error);
-      setIsLoading(false);
-      setInitStage("firestore-setup-error");
-    }
-    return () => {
-      if (unsub) {
-        console.log("Cleaning up Firestore listener");
-        unsub();
+        });
+
+        return () => { 
+          unsub();
+        };
+      } catch (error) {
+        console.error("Error in getUser:", error);
+        setIsLoading(false);
+        return () => {};
       }
     };
-  }, [dispatch, webApp, fetchTopUsers]);
+
+    if (webApp) {
+      getUser();
+    } 
+  }, [dispatch, webApp]); 
 
   useEffect(() => {
-    console.log("Current Redux State - User:", user ? "exists" : "null");
-    console.log("Current Redux State - Calculate:", calculate ? "true" : "false");
-  }, [user, calculate]);
+    const fetchTopUsers = async () => {
+      try {
+        const usersRef = collection(db, "users");
+        const q = query(usersRef, orderBy("balance", "desc"), limit(50));
+        const querySnapshot = await getDocs(q);
+        const topUsers = querySnapshot.docs.map((docSnap) => ({
+          id: docSnap.id, 
+          balance: docSnap.data().balance,
+          userImage: docSnap.data().userImage,
+          firstName: docSnap.data().firstName,
+          lastName: docSnap.data().lastName,
+        }));
+        dispatch(setTopUsers(topUsers));
+      } catch (error) {
+        console.error("Error fetching top users:", error);
+      }
+    };
+
+    fetchTopUsers();
+  }, [dispatch]);
 
   useEffect(() => {
     if (message) {
@@ -280,141 +226,70 @@ function App() {
     }
   }, [message, dispatch]);
 
-  const renderMainContent = () => {
-    try {
-      if (isLoading) {
-        return <Loading stage={initStage} />;
-      }
-      // If debugMode is enabled, render a simple static message to test rendering
-      if (debugMode) {
-        return (
-          <div style={{ background: "#fff", color: "#000", minHeight: "100vh", padding: "20px" }}>
-            <h1>DEBUG MODE: Hello World</h1>
-            <p>This is a static test message.</p>
-          </div>
-        );
-      }
-      return (
-        <div style={{ background: "#fff", color: "#000", minHeight: "100vh", padding: "20px" }}>
-          {user && calculate && <BottomNavigation />}
-          {user && (
-            <>
-              <CalculateNums />
-              <ToastContainer
-                style={{
-                  width: "calc(100% - 40px)",
-                  maxWidth: "none",
-                  left: "20px",
-                  right: "20px",
-                  top: "20px",
-                  height: "20px",
-                }}
-                toastStyle={{
-                  minHeight: "20px",
-                  padding: "0px 10px",
-                  paddingBottom: "4px",
-                  backgroundColor:
-                    message?.color === "green"
-                      ? "#00c000"
-                      : message?.color === "blue"
-                      ? "#1d4ed8"
-                      : "red",
-                  color: "white",
-                  borderRadius: "6px",
-                  marginBottom: "4px",
-                }}
-              />
-              <CoinAnimation showAnimation={coinShow} />
-            </>
-          )}
-          <Routes>
-            <Route path="/" element={isLoading ? <Loading stage={initStage} /> : <Home />} />
-            {user && <Route path="/daily" element={<Daily />} />}
-            {user && <Route path="/earn" element={<Earn />} />}
-            {user && <Route path="/airdrops" element={<AirDrops />} />}
-            {user && <Route path="/refferals" element={<Refferals />} />}
-            <Route path="*" element={isLoading ? <Loading stage={initStage} /> : <Home />} />
-          </Routes>
-        </div>
-      );
-    } catch (error) {
-      console.error("Error rendering main content:", error);
-      return (
-        <div style={{ padding: "20px", color: "white", backgroundColor: "#0b0b0b", height: "100vh" }}>
-          <h2>Rendering Error</h2>
-          <p>There was a problem rendering the app: {error.message}</p>
-          <button onClick={() => window.location.reload()}>Refresh Page</button>
-        </div>
-      );
-    }
-  };
-
-  if (telegramError) {
+  // Show error message if Telegram initialization failed
+  if (telegramInitError) {
     return (
       <div style={{ 
-        padding: "20px", 
-        color: "white", 
-        backgroundColor: "#0b0b0b",
-        height: "100vh",
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "center",
-        alignItems: "center",
+        padding: '20px', 
+        color: 'white', 
+        backgroundColor: '#0b0b0b',
+        height: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center'
       }}>
         <h2>Initialization Error</h2>
-        <p>There was a problem initializing the app: {telegramError}</p>
+        <p>There was a problem initializing the app: {telegramInitError}</p>
         <p>Please try refreshing the page or contact support.</p>
-        <button
-          onClick={() => window.location.reload()}
-          style={{
-            padding: "10px 20px",
-            margin: "20px 0",
-            backgroundColor: "#1d4ed8",
-            border: "none",
-            borderRadius: "4px",
-            color: "white",
-            cursor: "pointer",
-          }}
-        >
-          Refresh Page
-        </button>
-        <div style={{
-          marginTop: "20px",
-          padding: "10px",
-          border: "1px solid #333",
-          borderRadius: "5px",
-          fontSize: "12px",
-        }}>
-          <p>Debug info:</p>
-          <p>- Telegram WebApp available: {window.Telegram?.WebApp ? "Yes" : "No"}</p>
-          <p>- Init stage: {initStage}</p>
-          <p>- Error: {telegramError}</p>
-          <p>- Time: {new Date().toISOString()}</p>
-        </div>
       </div>
     );
   }
 
   return (
     <Router>
-      {renderMainContent()}
-      <div style={{ 
-        position: "fixed", 
-        bottom: 0, 
-        left: 0, 
-        right: 0, 
-        backgroundColor: "rgba(0,0,0,0.7)", 
-        color: "white", 
-        padding: "4px", 
-        fontSize: "10px", 
-        zIndex: 9999,
-      }}>
-        Stage: {initStage} | Loading: {isLoading ? "Yes" : "No"} | User: {user ? "Yes" : "No"} | Calculate: {calculate ? "Yes" : "No"}
-      </div>
+      {user && calculate && <BottomNavigation />}
+      {user && (
+        <>
+          <CalculateNums />
+          <ToastContainer
+            style={{
+              width: "calc(100% - 40px)", // 40px is the total of left and right 
+              maxWidth: "none",
+              left: "20px",
+              right: "20px",
+              top: "20px",
+              height: "20px",
+            }}
+            toastStyle={{
+              minHeight: "20px", // Adjust this value to change the height
+              padding: "0px 10px", // Adjust padding to further control size
+              paddingBottom: "4px",
+              backgroundColor:
+                message?.color === "green"
+                  ? "#00c000"
+                  : message?.color === "blue"
+                  ? "#1d4ed8"
+                  : "red",
+              color: "white",
+              borderRadius: "6px",
+              marginBottom: "4px",
+            }}
+          />
+          <CoinAnimation showAnimation={coinShow} />
+        </>
+      )}
+      <Routes>
+        <Route path="*" element={<Loading />} />
+        <Route path="/" element={isLoading ? <Loading /> : <Home />} />
+        {user && calculate && <Route path="/daily" element={<Daily />} />}
+        {user && calculate && <Route path="/earn" element={<Earn />} />}
+        {user && calculate && <Route path="/airdrops" element={<AirDrops />} />}
+        {user && calculate && <Route path="/refferals" element={<Refferals />} />}
+      </Routes>
     </Router>
   );
 }
 
 export default App;
-
 

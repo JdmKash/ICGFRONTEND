@@ -36,7 +36,14 @@ function Loading({ stage = "initializing" }) {
   };
 
   // Determine if there's an error based on stage
-  const isError = stage.includes("error");
+  const isError = stage && stage.includes("error");
+  
+  // Add error handling for background image loading
+  const handleImageError = (e) => {
+    console.error("Error loading background image");
+    // Set a fallback background color
+    e.target.parentElement.style.backgroundColor = "#0b0b0b";
+  };
 
   return(
     <div
@@ -44,54 +51,54 @@ function Loading({ stage = "initializing" }) {
         backgroundImage:`url(${backgroundImage})`,
         backgroundPosition: "center",
         backgroundSize: "cover",
-        backgroundColor: "#0b0b0b",
-        height: "100vh",
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "center",
-        alignItems: "center",
-        color: "white",
+        backgroundColor: "#0b0b0b", // Fallback color if image fails to load
       }}
+      className="h-screen relative"
+      onError={handleImageError}
     >       
       <div
         style={{
+          position: "absolute",
           display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
           justifyContent: "center",
+          alignItems: "center", // Added for better centering
           width: "100%",
+          height: "100%", // Changed to full height for better visibility
+          top: "0", // Position from top instead of bottom
         }}
       >
-        <LoadingModul size={60} theme={isError ? "error" : "light"} />
-        
-        <div style={{ marginTop: "20px", textAlign: "center" }}>
-          <p style={{ 
-            fontSize: "16px", 
-            fontWeight: "bold",
-            color: isError ? "#ff6b6b" : "white" 
-          }}>
-            {getStageMessage()}
-          </p>
+        <div className="text-center">
+          <LoadingModul size={60} theme={isError ? "error" : "light"} />
           
-          {isError && (
+          <div style={{ marginTop: "20px", textAlign: "center" }}>
             <p style={{ 
-              fontSize: "14px", 
-              marginTop: "10px",
-              maxWidth: "80%",
-              margin: "10px auto"
+              fontSize: "16px", 
+              fontWeight: "bold",
+              color: isError ? "#ff6b6b" : "white" 
             }}>
-              Please try refreshing the page or check your connection
+              {getStageMessage()}
             </p>
-          )}
-          
-          {/* Show stage for debugging - can be removed in production */}
-          <p style={{ 
-            fontSize: "10px", 
-            marginTop: "5px",
-            opacity: 0.7 
-          }}>
-            Stage: {stage}
-          </p>
+            
+            {isError && (
+              <p style={{ 
+                fontSize: "14px", 
+                marginTop: "10px",
+                maxWidth: "80%",
+                margin: "10px auto"
+              }}>
+                Please try refreshing the page or check your connection
+              </p>
+            )}
+            
+            {/* Show stage for debugging - can be removed in production */}
+            <p style={{ 
+              fontSize: "10px", 
+              marginTop: "5px",
+              opacity: 0.7 
+            }}>
+              Stage: {stage}
+            </p>
+          </div>
         </div>
       </div>  
     </div>   
