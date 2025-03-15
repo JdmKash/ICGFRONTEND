@@ -20,6 +20,7 @@ import Earn from "./Screens/Earn";
 import AirDrops from "./Screens/airdrops";
 import Refferals from "./Screens/refferals";
 import CalculateNums from "./Components/CalculateNums";
+import CalculateNumsSimple from "./Components/CalculateNumsSimple";
 import CoinAnimation from "./Components/CoinAnimation";
 import { selectShowMessage, setShowMessage } from "./features/messageSlice";
 import { ToastContainer, toast } from "react-toastify";
@@ -28,7 +29,7 @@ import { selectCoinShow } from "./features/coinShowSlice";
 import { setTopUsers } from "./features/topUsersSlice";
 import Loading from "./Screens/Loading";
 import BottomNavigation from "./Components/BottomNavigation";
-import { selectCalculated } from "./features/calculateSlice";
+import { selectCalculated, setCalculated } from "./features/calculateSlice";
 
 function App() {
   const dispatch = useDispatch();
@@ -40,6 +41,24 @@ function App() {
   const [webApp, setWebApp] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [telegramInitError, setTelegramInitError] = useState(null);
+  const [initStage, setInitStage] = useState("initializing");
+  
+  // Initialize calculate state with default values to prevent black screen
+  useEffect(() => {
+    if (user && !calculate) {
+      console.log("Initializing calculate state with default values");
+      dispatch(
+        setCalculated({
+          mined: 0,
+          remainingTime: { hours: 6, minutes: 0, seconds: 0 },
+          progress: 0,
+          canClaim: false,
+          canUpgrade: false,
+          updateError: null,
+        })
+      );
+    }
+  }, [user, calculate, dispatch]);
   
   const processLinks = (links) => {
     if (!links) return {};
@@ -54,6 +73,7 @@ function App() {
 
   // Safely initialize Telegram WebApp
   useEffect(() => {
+    setInitStage("telegram-init-start");
     try {
       // Check if Telegram WebApp is available
       if (window.Telegram && window.Telegram.WebApp) {
@@ -81,6 +101,7 @@ function App() {
             console.error("Error setting Telegram UI:", uiError);
             // Continue even if UI settings fail
           }
+          setInitStage("telegram-init-success");
         } else {
           console.log("Using fallback user data (not in Telegram)");
           setWebApp({
@@ -90,6 +111,7 @@ function App() {
             username: "@username",
             languageCode: "en",
           });
+          setInitStage("telegram-init-fallback");
         }
       } else {
         console.log("Telegram WebApp not available, using fallback");
@@ -100,6 +122,7 @@ function App() {
           username: "@username",
           languageCode: "en",
         });
+        setInitStage("telegram-init-fallback");
       }
     } catch (error) {
       console.error("Error initializing Telegram WebApp:", error);
@@ -112,6 +135,7 @@ function App() {
         username: "@username",
         languageCode: "en",
       });
+      setInitStage("telegram-init-error");
     }
   }, []);
 
@@ -119,8 +143,10 @@ function App() {
     //Listening to User
     const getUser = () => {    
       try {
+        setInitStage("firestore-connect");
         const unsub = onSnapshot(doc(db, "users", webApp.id), async (docSnap) => {
           if (docSnap.exists()) {
+            setInitStage("user-data-loaded");
             dispatch(
               setUser({
                 uid: webApp.id,
@@ -151,6 +177,7 @@ function App() {
           } 
           else {
             try {
+              setInitStage("new-user-created");
               await setDoc(doc(db, "users", webApp.id), {
                 firstName: webApp.firstName,
                 lastName: webApp.lastName || null,
@@ -171,9 +198,15 @@ function App() {
               setIsLoading(false);
             } catch (error) {
               console.error("Error creating new user:", error);
+              setInitStage("user-creation-error");
               setIsLoading(false);
             }
           }
+        },
+        (error) => {
+          console.error("Firestore listener error:", error);
+          setInitStage("firestore-listener-error");
+          setIsLoading(false);
         });
 
         return () => { 
@@ -181,6 +214,7 @@ function App() {
         };
       } catch (error) {
         console.error("Error in getUser:", error);
+        setInitStage("firestore-setup-error");
         setIsLoading(false);
         return () => {};
       }
@@ -251,6 +285,8 @@ function App() {
       {user && calculate && <BottomNavigation />}
       {user && (
         <>
+          {/* Use both CalculateNums components to ensure state is initialized */}
+          <CalculateNumsSimple />
           <CalculateNums />
           <ToastContainer
             style={{
@@ -280,8 +316,8 @@ function App() {
         </>
       )}
       <Routes>
-        <Route path="*" element={<Loading />} />
-        <Route path="/" element={isLoading ? <Loading /> : <Home />} />
+        <Route path="*" element={<Loading stage={initStage} />} />
+        <Route path="/" element={isLoading ? <Loading stage={initStage} /> : <Home />} />
         {user && calculate && <Route path="/daily" element={<Daily />} />}
         {user && calculate && <Route path="/earn" element={<Earn />} />}
         {user && calculate && <Route path="/airdrops" element={<AirDrops />} />}
@@ -292,4 +328,3 @@ function App() {
 }
 
 export default App;
-

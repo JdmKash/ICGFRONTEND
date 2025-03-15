@@ -7,7 +7,7 @@ function CalculateNums() {
     const dispatch = useDispatch();
     const user = useSelector(selectUser);
 
-    const [waiting, setWaiting] = useState(true);
+    const [waiting, setWaiting] = useState(false); // Changed from true to false to ensure initial dispatch
     const [mined, setMined] = useState(0);
     const [remainingTime, setRemainingTime] = useState({
       hours: 6,
@@ -19,6 +19,21 @@ function CalculateNums() {
     const [updateError, setUpdateError] = useState(null);
 
     const MAX_MINE_RATE = 100.0;
+
+    // Initialize calculate state with default values when component mounts
+    useEffect(() => {
+      console.log("CalculateNums: Initializing calculate state with default values");
+      dispatch(
+        setCalculated({
+          mined: 0,
+          remainingTime: { hours: 6, minutes: 0, seconds: 0 },
+          progress: 0,
+          canClaim: false,
+          canUpgrade: false,
+          updateError: null,
+        })
+      );
+    }, [dispatch]);
 
     // Wrapping each calculation function in useCallback
     const calculateProgress = useCallback((miningStartedTime) => {
@@ -109,7 +124,11 @@ function CalculateNums() {
     // Update function to be called by interval - moved to useCallback
     const updateFunction = useCallback(() => {
       try {
-        if (!user || !user.miningStartedTime) return;
+        if (!user || !user.miningStartedTime) {
+          // Even if there's no mining data, still update the calculate state
+          setWaiting(false);
+          return;
+        }
         
         // Update progress
         const currentProgress = calculateProgress(user.miningStartedTime);
@@ -159,7 +178,7 @@ function CalculateNums() {
         setMined(0);
         setRemainingTime({ hours: 6, minutes: 0, seconds: 0 });
         setCanClaim(false);
-        setWaiting(false);
+        setWaiting(false); // Ensure waiting is false even if not mining
         console.log("Mining not active, reset values");
       }
       
@@ -172,21 +191,19 @@ function CalculateNums() {
       };
     }, [user, updateFunction]); // Added updateFunction to dependencies
 
-    // Update calculated state in Redux
+    // Update calculated state in Redux - removed waiting condition to ensure state is always updated
     useEffect(() => {
-      if (!waiting) {
-        dispatch(
-          setCalculated({
-            mined: mined,
-            remainingTime: remainingTime,
-            progress: progress,
-            canClaim: canClaim,
-            canUpgrade: canUpgrade,
-            updateError: updateError,
-          })  
-        );
-      }  
-    }, [waiting, mined, remainingTime, progress, canClaim, canUpgrade, updateError, dispatch]);
+      dispatch(
+        setCalculated({
+          mined: mined,
+          remainingTime: remainingTime,
+          progress: progress,
+          canClaim: canClaim,
+          canUpgrade: canUpgrade,
+          updateError: updateError,
+        })  
+      );
+    }, [mined, remainingTime, progress, canClaim, canUpgrade, updateError, dispatch]);
 
   return <></>;
 }
