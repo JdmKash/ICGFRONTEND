@@ -30,6 +30,9 @@ import Loading from "./Screens/Loading";
 import BottomNavigation from "./Components/BottomNavigation";
 import { selectCalculated, setCalculated } from "./features/calculateSlice";
 
+// Force skip loading screen flag
+const FORCE_SKIP_LOADING = true;
+
 // Simple calculate component included directly to avoid import issues
 const CalculateNumsSimple = () => {
   const dispatch = useDispatch();
@@ -63,6 +66,61 @@ function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [telegramInitError, setTelegramInitError] = useState(null);
   const [initStage, setInitStage] = useState("initializing");
+  
+  // Force skip loading screen after a short delay
+  useEffect(() => {
+    if (FORCE_SKIP_LOADING) {
+      const skipTimeout = setTimeout(() => {
+        console.log("Force skipping loading screen");
+        setIsLoading(false);
+        
+        // Initialize with default user if none exists
+        if (!user) {
+          const defaultUserId = "default_user_" + Date.now();
+          console.log("Creating default user with ID:", defaultUserId);
+          
+          dispatch(
+            setUser({
+              uid: defaultUserId,
+              userImage: null,
+              firstName: "Guest",
+              lastName: "User",
+              userName: "guest_user",
+              languageCode: "en",
+              referrals: {},
+              referredBy: null,
+              isPremium: false,
+              balance: 0,
+              mineRate: 0.001,
+              isMining: false,
+              miningStartedTime: null,
+              daily: {
+                claimedTime: null,
+                claimedDay: 0,
+              },
+              links: {},
+            })
+          );
+        }
+        
+        // Initialize calculate state if needed
+        if (!calculate) {
+          dispatch(
+            setCalculated({
+              mined: 0,
+              remainingTime: { hours: 6, minutes: 0, seconds: 0 },
+              progress: 0,
+              canClaim: false,
+              canUpgrade: false,
+              updateError: null,
+            })
+          );
+        }
+      }, 2000); // Wait 2 seconds then force skip
+      
+      return () => clearTimeout(skipTimeout);
+    }
+  }, [dispatch, user, calculate]);
   
   // Initialize calculate state with default values to prevent black screen
   useEffect(() => {
