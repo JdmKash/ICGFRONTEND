@@ -20,7 +20,6 @@ import Earn from "./Screens/Earn";
 import AirDrops from "./Screens/airdrops";
 import Refferals from "./Screens/refferals";
 import CalculateNums from "./Components/CalculateNums";
-import CalculateNumsSimple from "./Components/CalculateNumsSimple";
 import CoinAnimation from "./Components/CoinAnimation";
 import { selectShowMessage, setShowMessage } from "./features/messageSlice";
 import { ToastContainer, toast } from "react-toastify";
@@ -30,6 +29,28 @@ import { setTopUsers } from "./features/topUsersSlice";
 import Loading from "./Screens/Loading";
 import BottomNavigation from "./Components/BottomNavigation";
 import { selectCalculated, setCalculated } from "./features/calculateSlice";
+
+// Simple calculate component included directly to avoid import issues
+const CalculateNumsSimple = () => {
+  const dispatch = useDispatch();
+
+  // Immediately initialize calculate state with default values
+  React.useEffect(() => {
+    console.log("CalculateNumsSimple: Initializing calculate state with default values");
+    dispatch(
+      setCalculated({
+        mined: 0,
+        remainingTime: { hours: 6, minutes: 0, seconds: 0 },
+        progress: 0,
+        canClaim: false,
+        canUpgrade: false,
+        updateError: null,
+      })
+    );
+  }, [dispatch]);
+
+  return null;
+};
 
 function App() {
   const dispatch = useDispatch();
