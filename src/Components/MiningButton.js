@@ -389,3 +389,16 @@ function MiningButton() {
             className="w-full mt-2 bg-red-500 text-white font-bold py-2 px-4 rounded"
           >
             Close
+          </button>
+        </div>
+      )}
+      
+      {!showUpgrade && !isMining && (
+        <button
+          onClick={startFarming}
+          disabled={isProcessing}
+          className={`w-full ${
+            isProcessing ? "bg-gray-500" : "bg-blue-500 hover:bg-blue-600"
+          } text-white font-bold py-2 px-4 rounded`}
+        >
+          {isProcessing ? "Processing..." : `Start Mining
