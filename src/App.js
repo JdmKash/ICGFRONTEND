@@ -41,7 +41,7 @@ function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [telegramError, setTelegramError] = useState(null);
   const [initStage, setInitStage] = useState("initializing");
-  
+
   // Function to safely process links object
   const processLinks = (links) => {
     if (!links) return {};
@@ -62,7 +62,7 @@ function App() {
       const q = query(usersRef, orderBy("balance", "desc"), limit(50));
       const querySnapshot = await getDocs(q);
       const topUsers = querySnapshot.docs.map((docSnap) => ({
-        id: docSnap.id, 
+        id: docSnap.id,
         balance: docSnap.data().balance,
         userImage: docSnap.data().userImage,
         firstName: docSnap.data().firstName,
@@ -91,7 +91,6 @@ function App() {
   useEffect(() => {
     console.log("Initializing Telegram WebApp");
     setInitStage("telegram-init-start");
-    
     try {
       if (window.Telegram && window.Telegram.WebApp) {
         const tg = window.Telegram.WebApp;
@@ -175,7 +174,7 @@ function App() {
                 uid: webApp.id,
                 balance: userData.balance,
                 mineRate: userData.mineRate,
-                isMining: userData.isMining
+                isMining: userData.isMining,
               });
               dispatch(
                 setUser({
@@ -191,12 +190,12 @@ function App() {
                   balance: userData.balance,
                   mineRate: userData.mineRate,
                   isMining: userData.isMining,
-                  miningStartedTime: userData.miningStartedTime 
+                  miningStartedTime: userData.miningStartedTime
                     ? userData.miningStartedTime.toMillis()
                     : null,
                   daily: {
                     claimedTime: userData.daily?.claimedTime
-                      ? userData.daily.claimedTime.toMillis() 
+                      ? userData.daily.claimedTime.toMillis()
                       : null,
                     claimedDay: userData.daily?.claimedDay || 0,
                   },
@@ -252,7 +251,7 @@ function App() {
       setIsLoading(false);
       setInitStage("firestore-setup-error");
     }
-    return () => { 
+    return () => {
       if (unsub) {
         console.log("Cleaning up Firestore listener");
         unsub();
@@ -283,9 +282,10 @@ function App() {
       if (isLoading) {
         return <Loading stage={initStage} />;
       }
-      
       return (
-        <div style={{ background: "#fff", color: "#000", minHeight: "100vh" }}>
+        <div style={{ background: "#fff", color: "#000", minHeight: "100vh", padding: "20px" }}>
+          <h1>DEBUG: App Loaded</h1>
+          <p>User: {user ? user.firstName : "No user"}</p>
           {user && calculate && <BottomNavigation />}
           {user && (
             <>
@@ -330,12 +330,10 @@ function App() {
     } catch (error) {
       console.error("Error rendering main content:", error);
       return (
-        <div style={{ padding: '20px', color: 'white', backgroundColor: '#0b0b0b', height: '100vh' }}>
+        <div style={{ padding: "20px", color: "white", backgroundColor: "#0b0b0b", height: "100vh" }}>
           <h2>Rendering Error</h2>
           <p>There was a problem rendering the app: {error.message}</p>
-          <button onClick={() => window.location.reload()}>
-            Refresh Page
-          </button>
+          <button onClick={() => window.location.reload()}>Refresh Page</button>
         </div>
       );
     }
@@ -343,42 +341,46 @@ function App() {
 
   if (telegramError) {
     return (
-      <div style={{ 
-        padding: '20px', 
-        color: 'white', 
-        backgroundColor: '#0b0b0b',
-        height: '100vh',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'center',
-        alignItems: 'center'
-      }}>
+      <div
+        style={{
+          padding: "20px",
+          color: "white",
+          backgroundColor: "#0b0b0b",
+          height: "100vh",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
         <h2>Initialization Error</h2>
         <p>There was a problem initializing the app: {telegramError}</p>
         <p>Please try refreshing the page or contact support.</p>
-        <button 
+        <button
           onClick={() => window.location.reload()}
           style={{
-            padding: '10px 20px',
-            margin: '20px 0',
-            backgroundColor: '#1d4ed8',
-            border: 'none',
-            borderRadius: '4px',
-            color: 'white',
-            cursor: 'pointer'
+            padding: "10px 20px",
+            margin: "20px 0",
+            backgroundColor: "#1d4ed8",
+            border: "none",
+            borderRadius: "4px",
+            color: "white",
+            cursor: "pointer",
           }}
         >
           Refresh Page
         </button>
-        <div style={{
-          marginTop: '20px',
-          padding: '10px',
-          border: '1px solid #333',
-          borderRadius: '5px',
-          fontSize: '12px'
-        }}>
+        <div
+          style={{
+            marginTop: "20px",
+            padding: "10px",
+            border: "1px solid #333",
+            borderRadius: "5px",
+            fontSize: "12px",
+          }}
+        >
           <p>Debug info:</p>
-          <p>- Telegram WebApp available: {window.Telegram?.WebApp ? 'Yes' : 'No'}</p>
+          <p>- Telegram WebApp available: {window.Telegram?.WebApp ? "Yes" : "No"}</p>
           <p>- Init stage: {initStage}</p>
           <p>- Error: {telegramError}</p>
           <p>- Time: {new Date().toISOString()}</p>
@@ -390,18 +392,20 @@ function App() {
   return (
     <Router>
       {renderMainContent()}
-      <div style={{ 
-        position: 'fixed', 
-        bottom: 0, 
-        left: 0, 
-        right: 0, 
-        backgroundColor: 'rgba(0,0,0,0.7)', 
-        color: 'white', 
-        padding: '4px', 
-        fontSize: '10px', 
-        zIndex: 9999 
-      }}>
-        Stage: {initStage} | Loading: {isLoading ? 'Yes' : 'No'} | User: {user ? 'Yes' : 'No'} | Calculate: {calculate ? 'Yes' : 'No'}
+      <div
+        style={{
+          position: "fixed",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          backgroundColor: "rgba(0,0,0,0.7)",
+          color: "white",
+          padding: "4px",
+          fontSize: "10px",
+          zIndex: 9999,
+        }}
+      >
+        Stage: {initStage} | Loading: {isLoading ? "Yes" : "No"} | User: {user ? "Yes" : "No"} | Calculate: {calculate ? "Yes" : "No"}
       </div>
     </Router>
   );
