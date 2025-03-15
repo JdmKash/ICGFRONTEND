@@ -37,6 +37,9 @@ function App() {
   const message = useSelector(selectShowMessage);
   const coinShow = useSelector(selectCoinShow);
 
+  // Set debugMode to true for testing. When true, the app renders a static message.
+  const debugMode = true;
+
   const [webApp, setWebApp] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [telegramError, setTelegramError] = useState(null);
@@ -54,7 +57,7 @@ function App() {
     }, {});
   };
 
-  // Fetch top users - useCallback to prevent dependency issues
+  // Fetch top users
   const fetchTopUsers = useCallback(async () => {
     try {
       console.log("Fetching top users");
@@ -75,7 +78,7 @@ function App() {
     }
   }, [dispatch]);
 
-  // Add emergency timeout to prevent infinite loading
+  // Emergency timeout to prevent infinite loading
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       if (isLoading) {
@@ -83,11 +86,11 @@ function App() {
         setIsLoading(false);
         setInitStage("emergency-timeout");
       }
-    }, 10000); // 10 seconds timeout
+    }, 10000);
     return () => clearTimeout(timeoutId);
   }, [isLoading]);
 
-  // Safely initialize Telegram WebApp
+  // Initialize Telegram WebApp
   useEffect(() => {
     console.log("Initializing Telegram WebApp");
     setInitStage("telegram-init-start");
@@ -104,7 +107,7 @@ function App() {
         } else {
           console.log("Skipping color settings for Telegram WebApp version 6.0+");
         }
-        // Increase delay to 1000ms to allow Telegram data to load
+        // Increase delay to allow Telegram data to load
         setTimeout(() => {
           if (tg?.initDataUnsafe?.user?.id) {
             const userId = tg.initDataUnsafe.user.id;
@@ -282,10 +285,17 @@ function App() {
       if (isLoading) {
         return <Loading stage={initStage} />;
       }
+      // If debugMode is enabled, render a simple static message to test rendering
+      if (debugMode) {
+        return (
+          <div style={{ background: "#fff", color: "#000", minHeight: "100vh", padding: "20px" }}>
+            <h1>DEBUG MODE: Hello World</h1>
+            <p>This is a static test message.</p>
+          </div>
+        );
+      }
       return (
         <div style={{ background: "#fff", color: "#000", minHeight: "100vh", padding: "20px" }}>
-          <h1>DEBUG: App Loaded</h1>
-          <p>User: {user ? user.firstName : "No user"}</p>
           {user && calculate && <BottomNavigation />}
           {user && (
             <>
@@ -341,18 +351,16 @@ function App() {
 
   if (telegramError) {
     return (
-      <div
-        style={{
-          padding: "20px",
-          color: "white",
-          backgroundColor: "#0b0b0b",
-          height: "100vh",
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "center",
-          alignItems: "center",
-        }}
-      >
+      <div style={{ 
+        padding: "20px", 
+        color: "white", 
+        backgroundColor: "#0b0b0b",
+        height: "100vh",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
+        alignItems: "center",
+      }}>
         <h2>Initialization Error</h2>
         <p>There was a problem initializing the app: {telegramError}</p>
         <p>Please try refreshing the page or contact support.</p>
@@ -370,15 +378,13 @@ function App() {
         >
           Refresh Page
         </button>
-        <div
-          style={{
-            marginTop: "20px",
-            padding: "10px",
-            border: "1px solid #333",
-            borderRadius: "5px",
-            fontSize: "12px",
-          }}
-        >
+        <div style={{
+          marginTop: "20px",
+          padding: "10px",
+          border: "1px solid #333",
+          borderRadius: "5px",
+          fontSize: "12px",
+        }}>
           <p>Debug info:</p>
           <p>- Telegram WebApp available: {window.Telegram?.WebApp ? "Yes" : "No"}</p>
           <p>- Init stage: {initStage}</p>
@@ -392,19 +398,17 @@ function App() {
   return (
     <Router>
       {renderMainContent()}
-      <div
-        style={{
-          position: "fixed",
-          bottom: 0,
-          left: 0,
-          right: 0,
-          backgroundColor: "rgba(0,0,0,0.7)",
-          color: "white",
-          padding: "4px",
-          fontSize: "10px",
-          zIndex: 9999,
-        }}
-      >
+      <div style={{ 
+        position: "fixed", 
+        bottom: 0, 
+        left: 0, 
+        right: 0, 
+        backgroundColor: "rgba(0,0,0,0.7)", 
+        color: "white", 
+        padding: "4px", 
+        fontSize: "10px", 
+        zIndex: 9999,
+      }}>
         Stage: {initStage} | Loading: {isLoading ? "Yes" : "No"} | User: {user ? "Yes" : "No"} | Calculate: {calculate ? "Yes" : "No"}
       </div>
     </Router>
@@ -412,3 +416,5 @@ function App() {
 }
 
 export default App;
+
+
