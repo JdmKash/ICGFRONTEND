@@ -38,7 +38,7 @@ function App() {
   const coinShow = useSelector(selectCoinShow);
 
   // Set debugMode to true for testing. When true, the app renders a static message.
-  const debugMode = true;
+  const debugMode = false;
 
   const [webApp, setWebApp] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
