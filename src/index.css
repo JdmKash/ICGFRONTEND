@@ -1,6 +1,12 @@
+/* Tailwind imports */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Main styles */
+html {
+  -webkit-text-size-adjust: 100%;
+}
 
 body {
   max-width: 672px;
