@@ -20,7 +20,8 @@ function CalculateNums() {
 
     const MAX_MINE_RATE = 100.0;
 
-    const calculateProgress = (miningStartedTime) => {
+    // Wrapping each calculation function in useCallback
+    const calculateProgress = useCallback((miningStartedTime) => {
         if (!miningStartedTime) return 0;
 
         const now = Date.now();
@@ -34,9 +35,9 @@ function CalculateNums() {
 
         const progress = (elapsedTime / totalMiningTime) * 100;
         return Math.min(Math.max(progress, 0), 100); // Ensure progress is between
-    };
+    }, [setCanClaim]);
 
-    const calculateMinedValue = (miningStartedTime, mineRate) => {
+    const calculateMinedValue = useCallback((miningStartedTime, mineRate) => {
         if (!miningStartedTime || !mineRate) return 0;
 
         const now = Date.now();
@@ -55,9 +56,9 @@ function CalculateNums() {
 
         // Round to 3 decimal places to avoid floating point precision issues
         return Math.round(minedValue * 1000) /1000;
-      };  
+    }, []);  
 
-    const calculateRemainingTime = (miningStartedTime) => {
+    const calculateRemainingTime = useCallback((miningStartedTime) => {
         if (!miningStartedTime) {
             return { hours: 6, minutes: 0, seconds: 0 };
         }
@@ -78,7 +79,7 @@ function CalculateNums() {
         const seconds = Math.floor((remainingTime % (60 * 1000)) / 1000);
 
         return { hours, minutes, seconds };
-      };
+    }, []);
 
     const addPrecise = (a, b) => {
       return parseFloat((a + b).toFixed(3));
