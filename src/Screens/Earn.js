@@ -17,7 +17,7 @@ function Earn() {
       
       <div className="earn-section">
         <h3>Watch Ads to Earn</h3>
-        <p>Watch rewarded ads to earn coins. Limited to 10 ads every 12 hours.</p>
+        <p>Watch rewarded ads to earn coins. Limited to 10 ads every 24 hours.</p>
         <RewardedAdsButton />
       </div>
       

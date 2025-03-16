@@ -55,7 +55,12 @@ function Liders() {
         }`}
       >
         {topUsers.map((topUser, index) => {
-          const { id, balance, firstName, lastName, userImage } = topUser;
+          const { id, balance, firstName, lastName, userName, userImage } = topUser;
+          
+          // Determine display name - prioritize userName for Telegram users
+          const displayName = userName ? 
+            userName : 
+            `${firstName || ""} ${lastName || ""}`.trim() || "User";
           
           return (
             <div
@@ -76,11 +81,11 @@ function Liders() {
                     <img
                       className="w-9 h-9 object-contain"
                       src={userImage}
-                      alt={firstName ? firstName[0].toUpperCase() : "U"}
+                      alt={displayName[0].toUpperCase()}
                     />
                   ) : (
                     <div className="text-xl text-white bg-black w-full h-full flex items-center justify-center">
-                      {firstName && firstName[0] ? firstName[0].toUpperCase() : "U"}
+                      {displayName[0].toUpperCase()}
                     </div>
                   )}
                 </div>
@@ -88,7 +93,7 @@ function Liders() {
               
               <div className="flex-grow min-w-0 flex items-center justify-between">
                 <p className="text-white font-bold truncate mr-2">
-                  {`${firstName || ""} ${lastName || ""}`.trim()}
+                  {displayName}
                 </p>
                 <div className="flex items-center">
                   <p className="text-white whitespace-nowrap flex-shrink-0 mr-2">

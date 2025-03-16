@@ -31,7 +31,18 @@ function MiningButton() {
   // Removed unused calculateMinedValue function
 
   const startFarming = async () => {
-    if (isProcessing) return; // Prevent multiple clicks
+    // Prevent multiple clicks or starting mining when already mining
+    if (isProcessing || isMining) {
+      if (isMining) {
+        dispatch(
+          setShowMessage({
+            message: "Mining is already in progress!",
+            color: "yellow",
+          })
+        );
+      }
+      return;
+    }
     
     setIsProcessing(true);
     try {
@@ -95,12 +106,31 @@ function MiningButton() {
       );
     } catch (error) {
       console.error("Error starting farming:", error);
-      dispatch(
-        setShowMessage({
-          message: `Error: ${error.message || "Please try again!"}`,
-          color: "red",
-        })
-      );
+      
+      // Fallback: Try to update with merge option
+      try {
+        const userRef = doc(db, "users", user.uid);
+        await setDoc(userRef, {
+          uid: user.uid,
+          isMining: true,
+          miningStartedTime: serverTimestamp()
+        }, { merge: true });
+        
+        dispatch(
+          setShowMessage({
+            message: "Mining started successfully!",
+            color: "green",
+          })
+        );
+      } catch (finalError) {
+        console.error("Final fallback error:", finalError);
+        dispatch(
+          setShowMessage({
+            message: `Error: ${error.message || "Please try again!"}`,
+            color: "red",
+          })
+        );
+      }
     } finally {
       setIsProcessing(false);
     }
@@ -124,7 +154,36 @@ function MiningButton() {
       
       // First, verify the user is actually mining
       const userSnap = await getDoc(userRef);
-      if (!userSnap.exists() || !userSnap.data().isMining) {
+      if (!userSnap.exists()) {
+        // Create user document if it doesn't exist
+        await setDoc(userRef, {
+          uid: user.uid,
+          userImage: user.userImage || null,
+          firstName: user.firstName || "Guest",
+          lastName: user.lastName || "User",
+          userName: user.userName || "guest_user",
+          balance: 100, // Default starting balance
+          mineRate: 0.001,
+          isMining: false,
+          miningStartedTime: null,
+          daily: {
+            claimedTime: null,
+            claimedDay: 0,
+          }
+        });
+        
+        dispatch(
+          setShowMessage({
+            message: "No active mining session found!",
+            color: "red",
+          })
+        );
+        setClaimDisabled(false);
+        setIsProcessing(false);
+        return;
+      }
+      
+      if (!userSnap.data().isMining) {
         dispatch(
           setShowMessage({
             message: "No active mining session found!",
@@ -183,31 +242,36 @@ function MiningButton() {
         // Handle referral bonus if applicable
         const referredBy = updatedSnap.data().referredBy;
         if (referredBy) {
-          const referralBonus = Number((roundedMinedAmount * 0.1).toFixed(2));
-          const referredDoc = doc(db, "users", referredBy);
-          const referrerSnapshot = await getDoc(referredDoc);
-          
-          if (referrerSnapshot.exists()) {
-            const referrerBalance = referrerSnapshot.data().balance;
-            const referrerReferrals = referrerSnapshot.data().referrals || {};
-            const referralData = referrerReferrals[user.uid] || { addedValue: 0 };
-            const referrerAddedValue = referralData.addedValue;
+          try {
+            const referralBonus = Number((roundedMinedAmount * 0.1).toFixed(2));
+            const referredDoc = doc(db, "users", referredBy);
+            const referrerSnapshot = await getDoc(referredDoc);
             
-            const updatedBalance = Number((referrerBalance + referralBonus).toFixed(2));
-            const updatedAddedValue = Number((referrerAddedValue + referralBonus).toFixed(2));
-            
-            await setDoc(
-              referredDoc,
-              {
-                referrals: {
-                  [user.uid]: {
-                    addedValue: updatedAddedValue,
+            if (referrerSnapshot.exists()) {
+              const referrerBalance = referrerSnapshot.data().balance;
+              const referrerReferrals = referrerSnapshot.data().referrals || {};
+              const referralData = referrerReferrals[user.uid] || { addedValue: 0 };
+              const referrerAddedValue = referralData.addedValue;
+              
+              const updatedBalance = Number((referrerBalance + referralBonus).toFixed(2));
+              const updatedAddedValue = Number((referrerAddedValue + referralBonus).toFixed(2));
+              
+              await setDoc(
+                referredDoc,
+                {
+                  referrals: {
+                    [user.uid]: {
+                      addedValue: updatedAddedValue,
+                    },
                   },
+                  balance: updatedBalance,
                 },
-                balance: updatedBalance,
-              },
-              { merge: true }
-            );
+                { merge: true }
+              );
+            }
+          } catch (referralError) {
+            console.error("Error processing referral bonus:", referralError);
+            // Continue execution even if referral bonus fails
           }
         }
         
@@ -232,12 +296,32 @@ function MiningButton() {
       }
     } catch (error) {
       console.error("Error claiming rewards:", error);
-      dispatch(
-        setShowMessage({
-          message: `Error: ${error.message || "Please try again!"}`,
-          color: "red",
-        })
-      );
+      
+      // Fallback: Try to update with merge option
+      try {
+        const userRef = doc(db, "users", user.uid);
+        await setDoc(userRef, {
+          isMining: false,
+          miningStartedTime: null,
+          uid: user.uid
+        }, { merge: true });
+        
+        dispatch(
+          setShowMessage({
+            message: "Mining session reset due to error.",
+            color: "yellow",
+          })
+        );
+      } catch (finalError) {
+        console.error("Final fallback error:", finalError);
+        dispatch(
+          setShowMessage({
+            message: `Error: ${error.message || "Please try again!"}`,
+            color: "red",
+          })
+        );
+      }
+      
       dispatch(setCoinShow(false));
     } finally {
       setClaimDisabled(false);
@@ -291,12 +375,38 @@ function MiningButton() {
       );
     } catch (error) {
       console.error("Error upgrading mine rate:", error);
-      dispatch(
-        setShowMessage({
-          message: `Error: ${error.message || "Please try again!"}`,
-          color: "red",
-        })
-      );
+      
+      // Fallback: Try to update with merge option
+      try {
+        const nextRate = Math.min(
+          addPrecise(user.mineRate, getUpgradeStep(user.mineRate)),
+          MAX_MINE_RATE
+        );
+        const price = getUpgradePrice(nextRate);
+        const newBalance = Number((user.balance - price).toFixed(2));
+        
+        const userRef = doc(db, "users", user.uid);
+        await setDoc(userRef, {
+          balance: newBalance,
+          mineRate: nextRate,
+          uid: user.uid
+        }, { merge: true });
+        
+        dispatch(
+          setShowMessage({
+            message: `Mine rate upgraded to ${formatNumber(nextRate)} ₿/s!`,
+            color: "green",
+          })
+        );
+      } catch (finalError) {
+        console.error("Final fallback error:", finalError);
+        dispatch(
+          setShowMessage({
+            message: `Error: ${error.message || "Please try again!"}`,
+            color: "red",
+          })
+        );
+      }
     } finally {
       setIsProcessing(false);
     }
@@ -309,31 +419,37 @@ function MiningButton() {
   const formatNumber = (num) => {
     if (num === undefined || num === null) return "0,00"; // Handle null/undefined values
     
-    //Convert the number to a string with a fixed number of decimal places
+    // Convert the number to a string with a fixed number of decimal places
     let numStr = num.toFixed(3);
+    
     // Split the number into integer and decimal parts
     let [intPart, decPart] = numStr.split(".");
+    
     // Add thousand separators to the integer part
     intPart = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-    // If the number is less that 0.01, keep 3 decimal places
+    
+    // If the number is less than 0.01, keep 3 decimal places
     if (num < 0.01) {
       return `${intPart},${decPart}`;
     }
+    
     // For other numbers, keep 2 decimal places
     decPart = decPart.slice(0, 2);
-    // Always return the formatted number with 2 decimal places
+    
+    // Return the formatted number
     return `${intPart},${decPart}`;
   };
 
-  const getUpgradeStep = (rate) => {
-    if (rate < 0.01) return 0.001;
-    if (rate < 0.1) return 0.01;
-    if (rate < 1) return 0.1;
-    return Math.pow(10, Math.floor(Math.log10(rate)));
+  const getUpgradeStep = (currentRate) => {
+    if (currentRate < 0.01) return 0.001;
+    if (currentRate < 0.1) return 0.01;
+    if (currentRate < 1) return 0.1;
+    if (currentRate < 10) return 1;
+    return 10;
   };
 
   const getUpgradePrice = (nextRate) => {
-    return nextRate * 100000;
+    return Math.ceil(nextRate * 1000);
   };
 
   const getNextUpgradeRate = () => {
@@ -357,6 +473,15 @@ function MiningButton() {
       <div className="absolute -top-12 left-0 text-white text-lg bg-gray-800 p-2 rounded">
         Balance: ₿ {formatNumber(balance)}
       </div>
+      {/* Mining tracking display */}
+      {isMining && (
+        <div className="absolute -top-24 left-0 right-0 text-white text-sm bg-gray-800 p-2 rounded">
+          <div className="flex justify-between items-center">
+            <span>Mining Speed: ₿ {formatNumber(mineRate)}/s</span>
+            <span>Level: {Math.floor(mineRate * 1000)}</span>
+          </div>
+        </div>
+      )}
       {!showUpgrade && !isMining && (
         <button
           onClick={() => setShowUpgrade(true)}
@@ -406,9 +531,9 @@ function MiningButton() {
       {!showUpgrade && !isMining && (
         <button
           onClick={startFarming}
-          disabled={isProcessing}
+          disabled={isProcessing || isMining}
           className={`w-full ${
-            isProcessing ? "bg-gray-500" : "bg-blue-500 hover:bg-blue-600"
+            isProcessing || isMining ? "bg-gray-500" : "bg-blue-500 hover:bg-blue-600"
           } text-white font-bold py-2 px-4 rounded`}
         >
           {isProcessing ? "Processing..." : "Start Mining"}
