@@ -28,21 +28,7 @@ function MiningButton() {
     return <div className="text-white p-4">Loading mining data...</div>;
   }
 
-  const calculateMinedValue = (minedStartedTime, mineRate) => {
-    if (!minedStartedTime || !mineRate) return 0;
-    const now = Date.now();
-    const totalMiningTime = 6 * 60 * 60 * 1000; // 6 hours in milliseconds
-    let elapsedTime = now - minedStartedTime;
-    elapsedTime = Math.round(elapsedTime / 1000) * 1000;
-    if(elapsedTime >= totalMiningTime) {
-      // Mining is complete, return maximum possible mined value
-      return mineRate * (totalMiningTime / 1000);
-    }
-    // Calculate mined value based on elapsed time
-    const minedValue = mineRate * (elapsedTime / 1000);
-    // Round to 3 decimal places to avoid floating point precision issues
-    return Math.round(minedValue * 1000) / 1000;
-  };
+  // Removed unused calculateMinedValue function
 
   const startFarming = async () => {
     if (isProcessing) return; // Prevent multiple clicks

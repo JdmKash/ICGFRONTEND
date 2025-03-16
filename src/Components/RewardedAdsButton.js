@@ -27,7 +27,7 @@ function RewardedAdsButton() {
     if (user && user.uid) {
       checkAdStatus();
     }
-  }, [user]);
+  }, [user, checkAdStatus]); // Added checkAdStatus to dependency array
 
   // Update countdown timer
   useEffect(() => {
@@ -53,7 +53,7 @@ function RewardedAdsButton() {
     return () => {
       if (timer) clearInterval(timer);
     };
-  }, [nextAdTime]);
+  }, [nextAdTime, checkAdStatus]); // Added checkAdStatus to dependency array
 
   // Check if user can view an ad
   const checkAdStatus = async () => {
