@@ -167,16 +167,16 @@ function TelegramApp() {
                 setUser({
                   uid: telegramUser.id,
                   userImage: userData.userImage,
-                  firstName: userData.firstName,
-                  lastName: userData.lastName,
-                  userName: userData.userName || userData.username, // Try both field names
-                  languageCode: userData.languageCode,
-                  referrals: userData.referrals,
-                  referredBy: userData.referredBy,
-                  isPremium: userData.isPremium,
-                  balance: userData.balance,
-                  mineRate: userData.mineRate,
-                  isMining: userData.isMining,
+                  firstName: userData.firstName || telegramUser.firstName,
+                  lastName: userData.lastName || telegramUser.lastName,
+                  userName: userData.userName || telegramUser.username,
+                  languageCode: userData.languageCode || telegramUser.languageCode,
+                  referrals: userData.referrals || {},
+                  referredBy: userData.referredBy || null,
+                  isPremium: userData.isPremium || false,
+                  balance: userData.balance || 0,
+                  mineRate: userData.mineRate || 0.001,
+                  isMining: userData.isMining || false,
                   miningStartedTime: processTimestamp(userData.miningStartedTime),
                   daily: {
                     claimedTime: processTimestamp(userData.daily?.claimedTime),
@@ -191,15 +191,18 @@ function TelegramApp() {
             } else {
               console.log("User document doesn't exist, creating new user");
               try {
+                // Create a new user document with the Telegram username
                 await setDoc(doc(db, "users", telegramUser.id), {
+                  uid: telegramUser.id,
                   firstName: telegramUser.firstName,
                   lastName: telegramUser.lastName,
-                  username: telegramUser.username,
-                  userName: telegramUser.username, // Add both field names for consistency
+                  userName: telegramUser.username, // Use consistent field name
+                  username: telegramUser.username, // Keep both for backward compatibility
                   languageCode: telegramUser.languageCode,
                   referrals: {},
                   referredBy: null,
-                  balance: 0,
+                  isPremium: false,
+                  balance: 100, // Start with some balance
                   mineRate: 0.001,
                   isMining: false,
                   miningStartedTime: null,
@@ -207,11 +210,35 @@ function TelegramApp() {
                     claimedTime: null,
                     claimedDay: 0,
                   },
-                  links: null,
+                  links: {},
                 });
                 
                 // Initialize balance in the dedicated balance slice
-                dispatch(setBalance(0));
+                dispatch(setBalance(100));
+                
+                // Also update the user in Redux
+                dispatch(
+                  setUser({
+                    uid: telegramUser.id,
+                    userImage: null,
+                    firstName: telegramUser.firstName,
+                    lastName: telegramUser.lastName,
+                    userName: telegramUser.username,
+                    languageCode: telegramUser.languageCode,
+                    referrals: {},
+                    referredBy: null,
+                    isPremium: false,
+                    balance: 100,
+                    mineRate: 0.001,
+                    isMining: false,
+                    miningStartedTime: null,
+                    daily: {
+                      claimedTime: null,
+                      claimedDay: 0,
+                    },
+                    links: {},
+                  })
+                );
                 
                 console.log("New user created successfully");
                 setIsLoading(false);
@@ -257,16 +284,20 @@ function TelegramApp() {
       const q = query(usersRef, orderBy("balance", "desc"), limit(50));
       const querySnapshot = await getDocs(q);
       
-      const topUsers = querySnapshot.docs.map((docSnap) => ({
-        id: docSnap.id,
-        balance: docSnap.data().balance,
-        userImage: docSnap.data().userImage,
-        firstName: docSnap.data().firstName,
-        lastName: docSnap.data().lastName,
-        // Try both field names for username and use the one that exists
-        userName: docSnap.data().userName || docSnap.data().username,
-      }));
+      const topUsers = querySnapshot.docs.map((docSnap) => {
+        const data = docSnap.data();
+        return {
+          id: docSnap.id,
+          balance: data.balance || 0,
+          userImage: data.userImage,
+          firstName: data.firstName,
+          lastName: data.lastName,
+          // Use userName field with fallback to username field
+          userName: data.userName || data.username,
+        };
+      });
       
+      console.log("Top users data:", topUsers);
       dispatch(setTopUsers(topUsers));
       console.log("Top users fetched successfully");
     } catch (error) {
