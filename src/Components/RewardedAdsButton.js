@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { selectUser } from "../features/userSlice";
 import { setShowMessage } from "../features/messageSlice";
@@ -22,41 +22,8 @@ function RewardedAdsButton() {
   const [timeRemaining, setTimeRemaining] = useState("");
   const [isAdButtonDisabled, setIsAdButtonDisabled] = useState(true);
 
-  // Check user's ad viewing status on component mount
-  useEffect(() => {
-    if (user && user.uid) {
-      checkAdStatus();
-    }
-  }, [user, checkAdStatus]); // Added checkAdStatus to dependency array
-
-  // Update countdown timer
-  useEffect(() => {
-    let timer;
-    if (nextAdTime) {
-      timer = setInterval(() => {
-        const now = Date.now();
-        const remaining = nextAdTime - now;
-        
-        if (remaining <= 0) {
-          clearInterval(timer);
-          checkAdStatus(); // Refresh ad status when time is up
-        } else {
-          // Format time remaining
-          const hours = Math.floor(remaining / (60 * 60 * 1000));
-          const minutes = Math.floor((remaining % (60 * 60 * 1000)) / (60 * 1000));
-          const seconds = Math.floor((remaining % (60 * 1000)) / 1000);
-          setTimeRemaining(`${hours}h ${minutes}m ${seconds}s`);
-        }
-      }, 1000);
-    }
-    
-    return () => {
-      if (timer) clearInterval(timer);
-    };
-  }, [nextAdTime, checkAdStatus]); // Added checkAdStatus to dependency array
-
-  // Check if user can view an ad
-  const checkAdStatus = async () => {
+  // Check if user can view an ad - wrapped in useCallback to prevent recreation on every render
+  const checkAdStatus = useCallback(async () => {
     if (!user || !user.uid) return;
     
     setIsLoading(true);
@@ -111,7 +78,40 @@ function RewardedAdsButton() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user, dispatch]); // Include dependencies used inside the function
+
+  // Check user's ad viewing status on component mount
+  useEffect(() => {
+    if (user && user.uid) {
+      checkAdStatus();
+    }
+  }, [user, checkAdStatus]);
+
+  // Update countdown timer
+  useEffect(() => {
+    let timer;
+    if (nextAdTime) {
+      timer = setInterval(() => {
+        const now = Date.now();
+        const remaining = nextAdTime - now;
+        
+        if (remaining <= 0) {
+          clearInterval(timer);
+          checkAdStatus(); // Refresh ad status when time is up
+        } else {
+          // Format time remaining
+          const hours = Math.floor(remaining / (60 * 60 * 1000));
+          const minutes = Math.floor((remaining % (60 * 60 * 1000)) / (60 * 1000));
+          const seconds = Math.floor((remaining % (60 * 1000)) / 1000);
+          setTimeRemaining(`${hours}h ${minutes}m ${seconds}s`);
+        }
+      }, 1000);
+    }
+    
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [nextAdTime, checkAdStatus]);
 
   // Handle watching an ad
   const handleWatchAd = async () => {
