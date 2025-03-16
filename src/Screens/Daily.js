@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { selectUser } from "../features/userSlice";
 import { doc, getDoc, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
@@ -30,7 +30,8 @@ function Daily() {
         return `${intPart}, ${decPart}`;
     };
     
-    const calculateClaimAmount = async () => {
+    // Wrap calculateClaimAmount in useCallback to prevent infinite loop
+    const calculateClaimAmount = useCallback(async () => {
       if (!user) return;
       
       try {
@@ -103,7 +104,7 @@ function Daily() {
       } catch (error) {
         console.error("Error calculating claim amount:", error);
       }
-    };
+    }, [user, dispatch, claimDisabled]); // Include all dependencies
     
     const handleClaim = async () => {
       try {
@@ -278,7 +279,7 @@ function Daily() {
       }, 60000);
       
       return () => clearInterval(interval);
-    }, [user]);
+    }, [calculateClaimAmount]); // Added calculateClaimAmount to dependency array
     
     return (
       <div className="text-white">
