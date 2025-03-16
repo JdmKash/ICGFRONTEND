@@ -27,11 +27,20 @@ function MiningButton() {
   const [currentMined, setCurrentMined] = useState(0); // State for current mined amount
   const MAX_MINE_RATE = 100.0;
 
+  // Debug logging to help diagnose issues
+  console.log("User data in MiningButton:", user);
+  console.log("Calculate data in MiningButton:", calculate);
+  console.log("Current mined amount:", currentMined);
+
   // Real-time mining calculation effect - MOVED BEFORE conditional return
   useEffect(() => {
     let intervalId;
     
     if (user && user.isMining && user.miningStartedTime) {
+      console.log("Mining is active, starting interval");
+      console.log("Mining start time:", user.miningStartedTime);
+      console.log("Mine rate:", user.mineRate);
+      
       // Update mining progress every second
       intervalId = setInterval(() => {
         const now = Date.now();
@@ -40,6 +49,7 @@ function MiningButton() {
         if (miningStartedTime) {
           // Calculate time difference in milliseconds
           const timeDifference = now - miningStartedTime;
+          console.log("Mining time difference (ms):", timeDifference);
           
           // Calculate progress percentage (6 hours = 21600000 ms)
           const progressPercentage = Math.min((timeDifference / 21600000) * 100, 100);
@@ -47,6 +57,7 @@ function MiningButton() {
           // Calculate mined amount
           const minedAmount = user.mineRate * (timeDifference / 1000);
           const roundedMinedAmount = Math.round(minedAmount * 1000) / 1000;
+          console.log("Calculated mined amount:", roundedMinedAmount);
           
           // Calculate remaining time
           const remainingMs = Math.max(21600000 - timeDifference, 0);
@@ -66,10 +77,17 @@ function MiningButton() {
           }));
         }
       }, 1000);
+    } else {
+      console.log("Mining is not active or missing data");
+      console.log("User mining status:", user?.isMining);
+      console.log("Mining start time:", user?.miningStartedTime);
     }
     
     return () => {
-      if (intervalId) clearInterval(intervalId);
+      if (intervalId) {
+        console.log("Clearing mining interval");
+        clearInterval(intervalId);
+      }
     };
   }, [user, dispatch]);
 
@@ -115,6 +133,7 @@ function MiningButton() {
           firstName: user.firstName || "Guest",
           lastName: user.lastName || "User",
           userName: user.userName || "guest_user",
+          username: user.userName || "guest_user", // Add both field names for consistency
           languageCode: user.languageCode || "en",
           referrals: user.referrals || {},
           referredBy: user.referredBy || null,
@@ -141,10 +160,22 @@ function MiningButton() {
         return;
       }
       
+      const now = serverTimestamp();
+      console.log("Starting mining with timestamp:", now);
+      
       await updateDoc(userRef, {
         isMining: true,
-        miningStartedTime: serverTimestamp(),
+        miningStartedTime: now,
       });
+      
+      // Also update the local user state to reflect mining status
+      dispatch(
+        setUser({
+          ...user,
+          isMining: true,
+          miningStartedTime: Date.now() // Use client timestamp for immediate UI update
+        })
+      );
       
       dispatch(
         setShowMessage({
@@ -158,11 +189,21 @@ function MiningButton() {
       // Fallback: Try to update with merge option
       try {
         const userRef = doc(db, "users", user.uid);
+        const now = serverTimestamp();
         await setDoc(userRef, {
           uid: user.uid,
           isMining: true,
-          miningStartedTime: serverTimestamp()
+          miningStartedTime: now
         }, { merge: true });
+        
+        // Also update the local user state
+        dispatch(
+          setUser({
+            ...user,
+            isMining: true,
+            miningStartedTime: Date.now() // Use client timestamp for immediate UI update
+          })
+        );
         
         dispatch(
           setShowMessage({
@@ -210,6 +251,7 @@ function MiningButton() {
           firstName: user.firstName || "Guest",
           lastName: user.lastName || "User",
           userName: user.userName || "guest_user",
+          username: user.userName || "guest_user", // Add both field names for consistency
           balance: 100, // Default starting balance
           mineRate: 0.001,
           isMining: false,
@@ -290,6 +332,19 @@ function MiningButton() {
         // Update the balance in real-time in the Redux store
         dispatch(updateBalance(newBalance));
         
+        // Also update the user state to reflect mining status
+        dispatch(
+          setUser({
+            ...user,
+            balance: newBalance,
+            isMining: false,
+            miningStartedTime: null
+          })
+        );
+        
+        // Reset current mined amount
+        setCurrentMined(0);
+        
         // Handle referral bonus if applicable
         const referredBy = updatedSnap.data().referredBy;
         if (referredBy) {
@@ -357,6 +412,18 @@ function MiningButton() {
           uid: user.uid
         }, { merge: true });
         
+        // Also update the user state
+        dispatch(
+          setUser({
+            ...user,
+            isMining: false,
+            miningStartedTime: null
+          })
+        );
+        
+        // Reset current mined amount
+        setCurrentMined(0);
+        
         dispatch(
           setShowMessage({
             message: "Mining session reset due to error.",
@@ -423,6 +490,15 @@ function MiningButton() {
         // Update the balance in real-time in the Redux store
         dispatch(updateBalance(newBalance));
         
+        // Also update the user state
+        dispatch(
+          setUser({
+            ...user,
+            mineRate: nextRate,
+            balance: newBalance
+          })
+        );
+        
         dispatch(
           setShowMessage({
             message: `Mining rate upgraded to ${nextRate.toFixed(3)} ₿/s!`,
@@ -447,6 +523,15 @@ function MiningButton() {
         
         // Update the balance in real-time in the Redux store
         dispatch(updateBalance(newBalance));
+        
+        // Also update the user state
+        dispatch(
+          setUser({
+            ...user,
+            mineRate: nextRate,
+            balance: newBalance
+          })
+        );
         
         dispatch(
           setShowMessage({
@@ -614,7 +699,7 @@ function MiningButton() {
             ></div>
           </div>
           <div className="w-full flex justify-between text-white text-sm">
-            <span>Mined: ₿ {formatNumber(mined)}</span>
+            <span>Mined: ₿ {formatNumber(currentMined || mined)}</span>
             <span>
               {remainingTime.hours}h {remainingTime.minutes}m remaining
             </span>

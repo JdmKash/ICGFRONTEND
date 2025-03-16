@@ -7,6 +7,10 @@ function Liders() {
   const user = useSelector(selectUser);
   const topUsers = useSelector(selectTopUsers) || [];
   
+  // Debug logging to help diagnose issues
+  console.log("Current user:", user);
+  console.log("Top users data:", topUsers);
+  
   const formatNumber = (num) => {
     // Ensure num is a number
     num = Number(num);
@@ -51,62 +55,69 @@ function Liders() {
           !topUsers.some((topUser) => topUser.id === user.uid) ? "pb-12" : ""
         }`}
       >
-        {topUsers.map((topUser, index) => {
-          const { id, balance, firstName, lastName, userName } = topUser;
-          
-          // Determine display name - prioritize userName for Telegram users
-          // If userName starts with @, use it directly, otherwise add @ prefix
-          let displayName;
-          if (userName) {
-            displayName = userName.startsWith('@') ? userName : `@${userName}`;
-          } else if (firstName || lastName) {
-            displayName = `${firstName || ""} ${lastName || ""}`.trim();
-          } else {
-            displayName = "User";
-          }
-          
-          return (
-            <div
-              key={id || index}
-              className={`${
-                id === user.uid ? "bg-gray-900 rounded-lg" : ""
-              } flex items-center px-2 py-1 w-full`}
-            >
-              <div className="flex-shrink-0 mr-4">
-                <div className="bg-zinc-950 flex items-center justify-center rounded-full h-8 w-8">
-                  <p className="text-white text-sm">{index + 1}</p>
+        {topUsers.length === 0 ? (
+          <div className="text-white p-4 text-center">Loading leaderboard data...</div>
+        ) : (
+          topUsers.map((topUser, index) => {
+            const { id, balance, firstName, lastName, userName } = topUser;
+            
+            // Debug logging for each user in the leaderboard
+            console.log(`User ${index + 1}:`, { id, userName, firstName, lastName });
+            
+            // Determine display name - prioritize userName for Telegram users
+            // If userName starts with @, use it directly, otherwise add @ prefix
+            let displayName;
+            if (userName) {
+              displayName = userName.startsWith('@') ? userName : `@${userName}`;
+            } else if (firstName || lastName) {
+              displayName = `${firstName || ""} ${lastName || ""}`.trim();
+            } else {
+              displayName = "User";
+            }
+            
+            return (
+              <div
+                key={id || index}
+                className={`${
+                  id === user.uid ? "bg-gray-900 rounded-lg" : ""
+                } flex items-center px-2 py-1 w-full`}
+              >
+                <div className="flex-shrink-0 mr-4">
+                  <div className="bg-zinc-950 flex items-center justify-center rounded-full h-8 w-8">
+                    <p className="text-white text-sm">{index + 1}</p>
+                  </div>
                 </div>
-              </div>
-              
-              <div className="flex-shrink-0 mr-2">
-                <div className="border-2 border-yellow-700 overflow-hidden flex items-center justify-center rounded-full bg-gray-800 h-10 w-10">
-                  {topUser.userImage ? (
-                    <img
-                      className="w-9 h-9 object-contain"
-                      src={topUser.userImage}
-                      alt={displayName[0].toUpperCase()}
-                    />
-                  ) : (
-                    <div className="text-xl text-white bg-black w-full h-full flex items-center justify-center">
-                      {displayName[0].toUpperCase()}
-                    </div>
-                  )}
+                
+                <div className="flex-shrink-0 mr-2">
+                  <div className="border-2 border-yellow-700 overflow-hidden flex items-center justify-center rounded-full bg-gray-800 h-10 w-10">
+                    {topUser.userImage ? (
+                      <img
+                        className="w-9 h-9 object-contain"
+                        src={topUser.userImage}
+                        alt={displayName[0].toUpperCase()}
+                      />
+                    ) : (
+                      <div className="text-xl text-white bg-black w-full h-full flex items-center justify-center">
+                        {displayName[0].toUpperCase()}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-              
-              <div className="flex-grow min-w-0 flex items-center justify-between">
-                <p className="text-white font-bold truncate mr-2">
-                  {displayName}
-                </p>
-                <div className="flex items-center">
-                  <p className="text-white whitespace-nowrap flex-shrink-0 mr-2">
-                    ₿ {formatNumber(balance)}
+                
+                <div className="flex-grow min-w-0 flex items-center justify-between">
+                  <p className="text-white font-bold truncate mr-2">
+                    {displayName}
                   </p>
+                  <div className="flex items-center">
+                    <p className="text-white whitespace-nowrap flex-shrink-0 mr-2">
+                      ₿ {formatNumber(balance)}
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })
+        )}
       </div>
     </div>
   );
