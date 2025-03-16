@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useDispatch } from "react-redux";
 import { setUser } from "./features/userSlice";
+import { setBalance } from "./features/balanceSlice";
 import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
 import Home from "./Screens/Home";
 import Daily from "./Screens/Daily";
@@ -159,6 +160,9 @@ function TelegramApp() {
               console.log("User document exists, updating Redux state");
               const userData = docSnap.data();
               
+              // Update the balance in the dedicated balance slice for real-time updates
+              dispatch(setBalance(userData.balance || 0));
+              
               dispatch(
                 setUser({
                   uid: telegramUser.id,
@@ -204,6 +208,9 @@ function TelegramApp() {
                   },
                   links: null,
                 });
+                
+                // Initialize balance in the dedicated balance slice
+                dispatch(setBalance(0));
                 
                 console.log("New user created successfully");
                 setIsLoading(false);
@@ -255,6 +262,7 @@ function TelegramApp() {
         userImage: docSnap.data().userImage,
         firstName: docSnap.data().firstName,
         lastName: docSnap.data().lastName,
+        userName: docSnap.data().username,
       }));
       
       dispatch(setTopUsers(topUsers));
