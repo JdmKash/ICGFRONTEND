@@ -169,7 +169,7 @@ function TelegramApp() {
                   userImage: userData.userImage,
                   firstName: userData.firstName,
                   lastName: userData.lastName,
-                  userName: userData.username,
+                  userName: userData.userName || userData.username, // Try both field names
                   languageCode: userData.languageCode,
                   referrals: userData.referrals,
                   referredBy: userData.referredBy,
@@ -195,6 +195,7 @@ function TelegramApp() {
                   firstName: telegramUser.firstName,
                   lastName: telegramUser.lastName,
                   username: telegramUser.username,
+                  userName: telegramUser.username, // Add both field names for consistency
                   languageCode: telegramUser.languageCode,
                   referrals: {},
                   referredBy: null,
@@ -262,7 +263,8 @@ function TelegramApp() {
         userImage: docSnap.data().userImage,
         firstName: docSnap.data().firstName,
         lastName: docSnap.data().lastName,
-        userName: docSnap.data().username,
+        // Try both field names for username and use the one that exists
+        userName: docSnap.data().userName || docSnap.data().username,
       }));
       
       dispatch(setTopUsers(topUsers));
