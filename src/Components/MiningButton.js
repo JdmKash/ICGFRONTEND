@@ -27,16 +27,11 @@ function MiningButton() {
   const [currentMined, setCurrentMined] = useState(0); // State for current mined amount
   const MAX_MINE_RATE = 100.0;
 
-  // Early return with loading state if user data or calculate data isn't loaded yet
-  if (!user || !calculate) {
-    return <div className="text-white p-4">Loading mining data...</div>;
-  }
-
-  // Real-time mining calculation effect
+  // Real-time mining calculation effect - MOVED BEFORE conditional return
   useEffect(() => {
     let intervalId;
     
-    if (user.isMining && user.miningStartedTime) {
+    if (user && user.isMining && user.miningStartedTime) {
       // Update mining progress every second
       intervalId = setInterval(() => {
         const now = Date.now();
@@ -76,7 +71,12 @@ function MiningButton() {
     return () => {
       if (intervalId) clearInterval(intervalId);
     };
-  }, [user.isMining, user.miningStartedTime, user.mineRate, dispatch]);
+  }, [user, dispatch]);
+
+  // Early return with loading state if user data or calculate data isn't loaded yet
+  if (!user || !calculate) {
+    return <div className="text-white p-4">Loading mining data...</div>;
+  }
 
   const startFarming = async () => {
     // Prevent multiple clicks or starting mining when already mining
