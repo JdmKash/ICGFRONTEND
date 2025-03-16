@@ -1,6 +1,6 @@
 import React from "react";
 import { useState, useEffect } from "react";
-import { selectUser } from "../features/userSlice";
+import { selectUser, setUser } from "../features/userSlice";
 import { useDispatch, useSelector } from "react-redux";
 import {
   doc,
