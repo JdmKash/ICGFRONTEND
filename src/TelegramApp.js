@@ -40,6 +40,41 @@ function TelegramApp() {
     }, {});
   };
 
+  // Function to save user data to localStorage
+  const saveUserToLocalStorage = (user) => {
+    if (!user) return;
+    try {
+      console.log("Saving user data to localStorage:", user.id);
+      localStorage.setItem('telegramUserId', user.id);
+      localStorage.setItem('telegramUserData', JSON.stringify({
+        id: user.id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        username: user.username,
+        languageCode: user.languageCode
+      }));
+    } catch (error) {
+      console.error("Error saving to localStorage:", error);
+    }
+  };
+
+  // Function to get user data from localStorage
+  const getUserFromLocalStorage = () => {
+    try {
+      const userId = localStorage.getItem('telegramUserId');
+      const userData = localStorage.getItem('telegramUserData');
+      
+      if (userId && userData) {
+        console.log("Retrieved user data from localStorage:", userId);
+        return JSON.parse(userData);
+      }
+      return null;
+    } catch (error) {
+      console.error("Error retrieving from localStorage:", error);
+      return null;
+    }
+  };
+
   // Initialize Telegram WebApp with retry mechanism
   useEffect(() => {
     console.log("App initialization started");
@@ -47,6 +82,16 @@ function TelegramApp() {
     
     let retryCount = 0;
     const maxRetries = 3;
+    
+    // First check if we have stored user data
+    const storedUser = getUserFromLocalStorage();
+    if (storedUser) {
+      console.log("Using stored Telegram user data:", storedUser.id);
+      setTelegramUser(storedUser);
+      setTelegramInitialized(true);
+      setAppStage("telegram-init-from-storage");
+      return; // Skip Telegram initialization if we have stored data
+    }
     
     const initTelegram = () => {
       try {
@@ -63,13 +108,18 @@ function TelegramApp() {
             const userId = tg.initDataUnsafe.user.id.toString();
             console.log("Telegram user identified:", userId);
             
-            setTelegramUser({
+            const user = {
               id: userId,
               firstName: tg?.initDataUnsafe?.user?.first_name || "User",
               lastName: tg?.initDataUnsafe?.user?.last_name || null,
               username: tg?.initDataUnsafe?.user?.username || null,
               languageCode: tg?.initDataUnsafe?.user?.language_code || "en",
-            });
+            };
+            
+            // Save user data to localStorage for persistence
+            saveUserToLocalStorage(user);
+            
+            setTelegramUser(user);
             
             // Set Telegram WebApp UI settings
             try {
@@ -85,15 +135,34 @@ function TelegramApp() {
             setTelegramInitialized(true);
             setAppStage("telegram-init-success");
           } else {
-            console.log("No Telegram user data, using fallback");
-            // Fallback for testing outside Telegram
-            setTelegramUser({
+            console.log("No Telegram user data, checking localStorage");
+            
+            // Try to get user from localStorage as a fallback
+            const storedUser = getUserFromLocalStorage();
+            if (storedUser) {
+              console.log("Using stored Telegram user data as fallback");
+              setTelegramUser(storedUser);
+              setTelegramInitialized(true);
+              setAppStage("telegram-init-storage-fallback");
+              return;
+            }
+            
+            // Last resort fallback for testing outside Telegram
+            console.log("No stored user data, using test fallback");
+            const testUser = {
               id: "82424881123",
               firstName: "TestUser",
               lastName: null,
               username: "@testuser",
               languageCode: "en",
-            });
+            };
+            
+            // Only save test user to localStorage in development
+            if (process.env.NODE_ENV === 'development') {
+              saveUserToLocalStorage(testUser);
+            }
+            
+            setTelegramUser(testUser);
             setTelegramInitialized(true);
             setAppStage("telegram-init-fallback");
           }
@@ -103,14 +172,29 @@ function TelegramApp() {
             retryCount++;
             setTimeout(initTelegram, 1000); // Retry after 1 second
           } else {
-            console.log("Telegram WebApp not available after retries, using fallback");
-            setTelegramUser({
+            console.log("Telegram WebApp not available after retries, checking localStorage");
+            
+            // Try to get user from localStorage as a fallback
+            const storedUser = getUserFromLocalStorage();
+            if (storedUser) {
+              console.log("Using stored Telegram user data after retries");
+              setTelegramUser(storedUser);
+              setTelegramInitialized(true);
+              setAppStage("telegram-init-storage-after-retry");
+              return;
+            }
+            
+            // Last resort fallback
+            console.log("No stored user data after retries, using test fallback");
+            const testUser = {
               id: "82424881123",
               firstName: "TestUser",
               lastName: null,
               username: "@testuser",
               languageCode: "en",
-            });
+            };
+            
+            setTelegramUser(testUser);
             setTelegramInitialized(true);
             setAppStage("telegram-init-fallback-after-retry");
           }
@@ -118,6 +202,16 @@ function TelegramApp() {
       } catch (error) {
         console.error("Error initializing Telegram WebApp:", error);
         setTelegramError(error.message);
+        
+        // Try to get user from localStorage as a fallback
+        const storedUser = getUserFromLocalStorage();
+        if (storedUser) {
+          console.log("Using stored Telegram user data after error");
+          setTelegramUser(storedUser);
+          setTelegramInitialized(true);
+          setAppStage("telegram-init-storage-after-error");
+          return;
+        }
         
         // Fallback to ensure the app still works
         if (retryCount < maxRetries) {
