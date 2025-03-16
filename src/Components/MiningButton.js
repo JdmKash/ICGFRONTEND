@@ -60,7 +60,32 @@ function MiningButton() {
       const userRef = doc(db, "users", user.uid);
       const userSnap = await getDoc(userRef);
       
-      if (userSnap.exists() && userSnap.data().isMining) {
+      // Check if user document exists in Firestore
+      if (!userSnap.exists()) {
+        // Create the user document if it doesn't exist
+        console.log("Creating user document in Firestore for:", user.uid);
+        await setDoc(userRef, {
+          uid: user.uid,
+          userImage: user.userImage,
+          firstName: user.firstName || "Guest",
+          lastName: user.lastName || "User",
+          userName: user.userName || "guest_user",
+          languageCode: user.languageCode || "en",
+          referrals: user.referrals || {},
+          referredBy: user.referredBy || null,
+          isPremium: user.isPremium || false,
+          balance: user.balance || 100,
+          mineRate: user.mineRate || 0.001,
+          isMining: false,
+          miningStartedTime: null,
+          daily: user.daily || {
+            claimedTime: null,
+            claimedDay: 0,
+          },
+          links: user.links || {},
+        });
+        console.log("User document created successfully");
+      } else if (userSnap.exists() && userSnap.data().isMining) {
         dispatch(
           setShowMessage({
             message: "Mining is already in progress!",
@@ -334,7 +359,6 @@ function MiningButton() {
   const isMining = user.isMining || false;
   const mineRate = user.mineRate || 0;
   const balance = user.balance || 0;
-
   // Create safe defaults for calculate properties
   const canUpgrade = calculate.canUpgrade || false;
   const canClaim = calculate.canClaim || false;
@@ -408,3 +432,36 @@ function MiningButton() {
       {!showUpgrade && isMining && (
         <div className="w-full flex flex-col items-center justify-center space-y-2">
           <div className="w-full bg-gray-700 rounded-full h-4">
+            <div
+              className="bg-blue-500 h-4 rounded-full transition-all duration-500 ease-in-out"
+              style={{ width: `${progress}%` }}
+            ></div>
+          </div>
+          <div className="w-full flex justify-between text-white text-sm">
+            <span>Mined: ₿ {formatNumber(mined)}</span>
+            <span>
+              {remainingTime.hours}h {remainingTime.minutes}m remaining
+            </span>
+          </div>
+          <button
+            onClick={claimRewards}
+            disabled={!canClaim || claimDisabled || isProcessing}
+            className={`w-full mt-2 ${
+              canClaim && !claimDisabled && !isProcessing
+                ? "bg-green-500 hover:bg-green-600"
+                : "bg-gray-500"
+            } text-white font-bold py-2 px-4 rounded`}
+          >
+            {isProcessing
+              ? "Processing..."
+              : canClaim
+              ? "Claim Rewards"
+              : "Mining in Progress..."}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default MiningButton;
