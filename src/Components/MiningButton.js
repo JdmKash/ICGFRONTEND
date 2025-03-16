@@ -1,5 +1,5 @@
 import React from "react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { selectUser } from "../features/userSlice";
 import { useDispatch, useSelector } from "react-redux";
 import {
@@ -13,14 +13,18 @@ import { db } from "../firebase";
 import { selectCalculated } from "../features/calculateSlice";
 import { setShowMessage } from "../features/messageSlice";
 import { setCoinShow } from "../features/coinShowSlice";
+import { setCalculated } from "../features/calculateSlice";
+import { selectBalance, updateBalance } from "../features/balanceSlice";
 
 function MiningButton() {
   const dispatch = useDispatch();
   const user = useSelector(selectUser);
   const calculate = useSelector(selectCalculated);
+  const currentBalance = useSelector(selectBalance);
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [claimDisabled, setClaimDisabled] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false); // Add loading state
+  const [currentMined, setCurrentMined] = useState(0); // State for current mined amount
   const MAX_MINE_RATE = 100.0;
 
   // Early return with loading state if user data or calculate data isn't loaded yet
@@ -28,7 +32,51 @@ function MiningButton() {
     return <div className="text-white p-4">Loading mining data...</div>;
   }
 
-  // Removed unused calculateMinedValue function
+  // Real-time mining calculation effect
+  useEffect(() => {
+    let intervalId;
+    
+    if (user.isMining && user.miningStartedTime) {
+      // Update mining progress every second
+      intervalId = setInterval(() => {
+        const now = Date.now();
+        const miningStartedTime = user.miningStartedTime;
+        
+        if (miningStartedTime) {
+          // Calculate time difference in milliseconds
+          const timeDifference = now - miningStartedTime;
+          
+          // Calculate progress percentage (6 hours = 21600000 ms)
+          const progressPercentage = Math.min((timeDifference / 21600000) * 100, 100);
+          
+          // Calculate mined amount
+          const minedAmount = user.mineRate * (timeDifference / 1000);
+          const roundedMinedAmount = Math.round(minedAmount * 1000) / 1000;
+          
+          // Calculate remaining time
+          const remainingMs = Math.max(21600000 - timeDifference, 0);
+          const hours = Math.floor(remainingMs / 3600000);
+          const minutes = Math.floor((remainingMs % 3600000) / 60000);
+          const seconds = Math.floor((remainingMs % 60000) / 1000);
+          
+          // Update state with calculated values
+          setCurrentMined(roundedMinedAmount);
+          
+          // Update Redux store with calculated values
+          dispatch(setCalculated({
+            progress: progressPercentage,
+            mined: roundedMinedAmount,
+            canClaim: timeDifference >= 21600000,
+            remainingTime: { hours, minutes, seconds }
+          }));
+        }
+      }, 1000);
+    }
+    
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [user.isMining, user.miningStartedTime, user.mineRate, dispatch]);
 
   const startFarming = async () => {
     // Prevent multiple clicks or starting mining when already mining
@@ -239,6 +287,9 @@ function MiningButton() {
           miningStartedTime: null,
         });
         
+        // Update the balance in real-time in the Redux store
+        dispatch(updateBalance(newBalance));
+        
         // Handle referral bonus if applicable
         const referredBy = updatedSnap.data().referredBy;
         if (referredBy) {
@@ -354,70 +405,83 @@ function MiningButton() {
       
       dispatch(
         setShowMessage({
-          message: "Upgrading in progress...",
+          message: "Upgrading mining rate...",
           color: "blue",
         })
       );
       
+      // Reference to user document
+      const userRef = doc(db, "users", user.uid);
       const newBalance = Number((user.balance - price).toFixed(2));
-      setShowUpgrade(false);
       
-      await updateDoc(doc(db, "users", user.uid), {
-        balance: newBalance,
-        mineRate: nextRate,
-      });
-      
-      dispatch(
-        setShowMessage({
-          message: `Mine rate upgraded to ${formatNumber(nextRate)} ₿/s!`,
-          color: "green",
-        })
-      );
-    } catch (error) {
-      console.error("Error upgrading mine rate:", error);
-      
-      // Fallback: Try to update with merge option
       try {
-        const nextRate = Math.min(
-          addPrecise(user.mineRate, getUpgradeStep(user.mineRate)),
-          MAX_MINE_RATE
-        );
-        const price = getUpgradePrice(nextRate);
-        const newBalance = Number((user.balance - price).toFixed(2));
-        
-        const userRef = doc(db, "users", user.uid);
-        await setDoc(userRef, {
-          balance: newBalance,
+        await updateDoc(userRef, {
           mineRate: nextRate,
-          uid: user.uid
-        }, { merge: true });
+          balance: newBalance,
+        });
+        
+        // Update the balance in real-time in the Redux store
+        dispatch(updateBalance(newBalance));
         
         dispatch(
           setShowMessage({
-            message: `Mine rate upgraded to ${formatNumber(nextRate)} ₿/s!`,
+            message: `Mining rate upgraded to ${nextRate.toFixed(3)} ₿/s!`,
             color: "green",
           })
         );
-      } catch (finalError) {
-        console.error("Final fallback error:", finalError);
+        
+        setShowUpgrade(false);
+      } catch (updateError) {
+        console.error("Error updating user document:", updateError);
+        
+        // Fallback: Try to update with merge option
+        const newBalance = Number((user.balance - price).toFixed(2));
+        await setDoc(
+          userRef,
+          {
+            mineRate: nextRate,
+            balance: newBalance,
+          },
+          { merge: true }
+        );
+        
+        // Update the balance in real-time in the Redux store
+        dispatch(updateBalance(newBalance));
+        
         dispatch(
           setShowMessage({
-            message: `Error: ${error.message || "Please try again!"}`,
-            color: "red",
+            message: `Mining rate upgraded to ${nextRate.toFixed(3)} ₿/s!`,
+            color: "green",
           })
         );
+        
+        setShowUpgrade(false);
       }
+    } catch (error) {
+      console.error("Error upgrading mine rate:", error);
+      dispatch(
+        setShowMessage({
+          message: `Error: ${error.message || "Please try again!"}`,
+          color: "red",
+        })
+      );
     } finally {
       setIsProcessing(false);
     }
   };
 
+  // Helper function to add numbers with precision
   const addPrecise = (a, b) => {
-    return parseFloat((a + b).toFixed(3));
+    return Number((a + b).toFixed(3));
   };
 
+  // Helper function to format numbers for display
   const formatNumber = (num) => {
-    if (num === undefined || num === null) return "0,00"; // Handle null/undefined values
+    // Ensure num is a number
+    num = Number(num);
+    
+    // Handle invalid numbers
+    if (isNaN(num)) return "0.00";
     
     // Convert the number to a string with a fixed number of decimal places
     let numStr = num.toFixed(3);
@@ -426,20 +490,13 @@ function MiningButton() {
     let [intPart, decPart] = numStr.split(".");
     
     // Add thousand separators to the integer part
-    intPart = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-    
-    // If the number is less than 0.01, keep 3 decimal places
-    if (num < 0.01) {
-      return `${intPart},${decPart}`;
-    }
-    
-    // For other numbers, keep 2 decimal places
-    decPart = decPart.slice(0, 2);
+    intPart = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
     
     // Return the formatted number
-    return `${intPart},${decPart}`;
+    return `${intPart}.${decPart}`;
   };
 
+  // Calculate upgrade step based on current mine rate
   const getUpgradeStep = (currentRate) => {
     if (currentRate < 0.01) return 0.001;
     if (currentRate < 0.1) return 0.01;
@@ -460,7 +517,8 @@ function MiningButton() {
   // Default values for user properties if they don't exist
   const isMining = user.isMining || false;
   const mineRate = user.mineRate || 0;
-  const balance = user.balance || 0;
+  // Use the balance from the dedicated balance slice for real-time updates
+  const balance = currentBalance || user.balance || 0;
   // Create safe defaults for calculate properties
   const canUpgrade = calculate.canUpgrade || false;
   const canClaim = calculate.canClaim || false;
@@ -473,15 +531,20 @@ function MiningButton() {
       <div className="absolute -top-12 left-0 text-white text-lg bg-gray-800 p-2 rounded">
         Balance: ₿ {formatNumber(balance)}
       </div>
-      {/* Mining tracking display */}
-      {isMining && (
-        <div className="absolute -top-24 left-0 right-0 text-white text-sm bg-gray-800 p-2 rounded">
-          <div className="flex justify-between items-center">
-            <span>Mining Speed: ₿ {formatNumber(mineRate)}/s</span>
-            <span>Level: {Math.floor(mineRate * 1000)}</span>
-          </div>
+      
+      {/* Current mined amount display - always visible */}
+      <div className="absolute -top-24 left-0 right-0 text-white text-sm bg-gray-800 p-2 rounded">
+        <div className="flex justify-between items-center">
+          <span>Mining Speed: ₿ {formatNumber(mineRate)}/s</span>
+          <span>Level: {Math.floor(mineRate * 1000)}</span>
         </div>
-      )}
+        {isMining && (
+          <div className="mt-1 text-center text-yellow-400 font-bold">
+            Currently Mined: ₿ {formatNumber(currentMined || mined)}
+          </div>
+        )}
+      </div>
+      
       {!showUpgrade && !isMining && (
         <button
           onClick={() => setShowUpgrade(true)}

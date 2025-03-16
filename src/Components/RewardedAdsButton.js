@@ -6,6 +6,7 @@ import { doc, getDoc, updateDoc, serverTimestamp, setDoc } from "firebase/firest
 import { db } from "../firebase";
 import "../styles/RewardedAdsButton.css";
 import { setCoinShow } from "../features/coinShowSlice";
+import { updateBalance } from "../features/balanceSlice";
 
 // Reward amount per ad view
 const COINS_PER_AD = 10;
@@ -145,6 +146,9 @@ function RewardedAdsButton() {
               }
             });
             
+            // Update balance in real-time
+            dispatch(updateBalance(100));
+            
             dispatch(
               setShowMessage({
                 message: `Congratulations! You earned ${COINS_PER_AD} coins!`,
@@ -163,6 +167,7 @@ function RewardedAdsButton() {
           const adViews = userData.adViews || { count: 0, lastViewTime: null, periodStartTime: null };
           
           // If this is the first ad view or period has expired, start a new period
+          const newBalance = (userData.balance || 0) + COINS_PER_AD;
           const updateData = {
             adViews: {
               count: adViews.periodStartTime ? adViews.count + 1 : 1,
@@ -170,10 +175,13 @@ function RewardedAdsButton() {
               periodStartTime: adViews.periodStartTime || now
             },
             // Add coins to user's balance
-            balance: (userData.balance || 0) + COINS_PER_AD
+            balance: newBalance
           };
           
           await updateDoc(userRef, updateData);
+          
+          // Update balance in real-time
+          dispatch(updateBalance(newBalance));
           
           // Show success message
           dispatch(
@@ -191,10 +199,14 @@ function RewardedAdsButton() {
           // Even if there's an error, still try to reward the user
           try {
             const userRef = doc(db, "users", user.uid);
+            const newBalance = (user.balance || 0) + COINS_PER_AD;
             await setDoc(userRef, {
-              balance: (user.balance || 0) + COINS_PER_AD,
+              balance: newBalance,
               uid: user.uid
             }, { merge: true });
+            
+            // Update balance in real-time
+            dispatch(updateBalance(newBalance));
             
             dispatch(
               setShowMessage({
@@ -250,19 +262,23 @@ function RewardedAdsButton() {
             
             if (!userSnap.exists()) {
               // Create user document if it doesn't exist
+              const newBalance = 100 + COINS_PER_AD;
               await setDoc(userRef, {
                 uid: user.uid,
                 userImage: user.userImage || null,
                 firstName: user.firstName || "Guest",
                 lastName: user.lastName || "User",
                 userName: user.userName || "guest_user",
-                balance: 100 + COINS_PER_AD, // Default starting balance + reward
+                balance: newBalance, // Default starting balance + reward
                 adViews: {
                   count: 1,
                   lastViewTime: serverTimestamp(),
                   periodStartTime: serverTimestamp()
                 }
               });
+              
+              // Update balance in real-time
+              dispatch(updateBalance(newBalance));
               
               dispatch(
                 setShowMessage({
@@ -281,6 +297,7 @@ function RewardedAdsButton() {
             const adViews = userData.adViews || { count: 0, lastViewTime: null, periodStartTime: null };
             
             // If this is the first ad view or period has expired, start a new period
+            const newBalance = (userData.balance || 0) + COINS_PER_AD;
             const updateData = {
               adViews: {
                 count: adViews.periodStartTime ? adViews.count + 1 : 1,
@@ -288,10 +305,116 @@ function RewardedAdsButton() {
                 periodStartTime: adViews.periodStartTime || now
               },
               // Add coins to user's balance
-              balance: (userData.balance || 0) + COINS_PER_AD
+              balance: newBalance
             };
             
             await updateDoc(userRef, updateData);
+            
+            // Update balance in real-time
+            dispatch(updateBalance(newBalance));
+            
+            // Show success message and coin animation
+            dispatch(setCoinShow(true));
+            dispatch(
+              setShowMessage({
+                message: `Congratulations! You earned ${COINS_PER_AD} coins!`,
+                color: "green",
+              })
+            );
+            
+            // Refresh ad status
+            checkAdStatus();
+          } catch (error) {
+            console.error("Error updating user after ad view:", error);
+            
+            // Fallback: Try to update with merge option
+            try {
+              const userRef = doc(db, "users", user.uid);
+              const newBalance = (user.balance || 0) + COINS_PER_AD;
+              await setDoc(userRef, {
+                balance: newBalance,
+                uid: user.uid
+              }, { merge: true });
+              
+              // Update balance in real-time
+              dispatch(updateBalance(newBalance));
+              
+              dispatch(
+                setShowMessage({
+                  message: `Coins awarded despite error!`,
+                  color: "green",
+                })
+              );
+            } catch (finalError) {
+              console.error("Final fallback error:", finalError);
+              dispatch(
+                setShowMessage({
+                  message: "Error processing reward. Please try again.",
+                  color: "red",
+                })
+              );
+            }
+          }
+        }).catch(async (error) => {
+          console.error("Error showing ad:", error);
+          
+          // Fallback: Proceed as if ad was watched successfully
+          try {
+            const userRef = doc(db, "users", user.uid);
+            const userSnap = await getDoc(userRef);
+            
+            if (!userSnap.exists()) {
+              // Create user document if it doesn't exist
+              const newBalance = 100 + COINS_PER_AD;
+              await setDoc(userRef, {
+                uid: user.uid,
+                userImage: user.userImage || null,
+                firstName: user.firstName || "Guest",
+                lastName: user.lastName || "User",
+                userName: user.userName || "guest_user",
+                balance: newBalance, // Default starting balance + reward
+                adViews: {
+                  count: 1,
+                  lastViewTime: serverTimestamp(),
+                  periodStartTime: serverTimestamp()
+                }
+              });
+              
+              // Update balance in real-time
+              dispatch(updateBalance(newBalance));
+              
+              dispatch(
+                setShowMessage({
+                  message: `Congratulations! You earned ${COINS_PER_AD} coins!`,
+                  color: "green",
+                })
+              );
+              
+              // Refresh ad status
+              checkAdStatus();
+              return;
+            }
+            
+            const userData = userSnap.data();
+            const now = serverTimestamp();
+            const adViews = userData.adViews || { count: 0, lastViewTime: null, periodStartTime: null };
+            
+            // If this is the first ad view or period has expired, start a new period
+            const newBalance = (userData.balance || 0) + COINS_PER_AD;
+            const updateData = {
+              adViews: {
+                count: adViews.periodStartTime ? adViews.count + 1 : 1,
+                lastViewTime: now,
+                periodStartTime: adViews.periodStartTime || now
+              },
+              // Add coins to user's balance
+              balance: newBalance
+            };
+            
+            await updateDoc(userRef, updateData);
+            
+            // Update balance in real-time
+            dispatch(updateBalance(newBalance));
             
             // Show success message
             dispatch(
@@ -304,173 +427,61 @@ function RewardedAdsButton() {
             // Refresh ad status
             checkAdStatus();
           } catch (error) {
-            console.error("Error updating after ad view:", error);
-            // Fallback: Try to update with merge option
-            try {
-              const userRef = doc(db, "users", user.uid);
-              await setDoc(userRef, {
-                balance: (user.balance || 0) + COINS_PER_AD,
-                uid: user.uid
-              }, { merge: true });
-              
-              dispatch(
-                setShowMessage({
-                  message: `Coins awarded despite error!`,
-                  color: "green",
-                })
-              );
-            } catch (finalError) {
-              console.error("Final fallback error:", finalError);
-            }
+            console.error("Error in fallback ad handling:", error);
+            dispatch(
+              setShowMessage({
+                message: "Error processing ad. Please try again.",
+                color: "red",
+              })
+            );
           }
-        }).catch(error => {
-          console.error("Error showing ad:", error);
-          dispatch(
-            setShowMessage({
-              message: "Error showing ad. Rewarding coins anyway!",
-              color: "yellow",
-            })
-          );
-          
-          // Fallback: Reward user anyway if ad fails to show
-          (async () => {
-            try {
-              const userRef = doc(db, "users", user.uid);
-              const userSnap = await getDoc(userRef);
-              
-              if (userSnap.exists()) {
-                const userData = userSnap.data();
-                await updateDoc(userRef, {
-                  balance: (userData.balance || 0) + COINS_PER_AD
-                });
-              } else {
-                // Create user document if it doesn't exist
-                await setDoc(userRef, {
-                  uid: user.uid,
-                  userImage: user.userImage || null,
-                  firstName: user.firstName || "Guest",
-                  lastName: user.lastName || "User",
-                  userName: user.userName || "guest_user",
-                  balance: 100 + COINS_PER_AD, // Default starting balance + reward
-                  adViews: {
-                    count: 1,
-                    lastViewTime: serverTimestamp(),
-                    periodStartTime: serverTimestamp()
-                  }
-                });
-              }
-              
-              checkAdStatus();
-            } catch (fbError) {
-              console.error("Error in fallback reward:", fbError);
-              // Final fallback - try with merge
-              try {
-                const userRef = doc(db, "users", user.uid);
-                await setDoc(userRef, {
-                  balance: (user.balance || 0) + COINS_PER_AD,
-                  uid: user.uid
-                }, { merge: true });
-              } catch (finalError) {
-                console.error("Final fallback error:", finalError);
-              }
-            }
-          })();
         });
       } catch (error) {
-        console.error("Critical error in ad display:", error);
+        console.error("Error in ad handling:", error);
         dispatch(
           setShowMessage({
-            message: "Error with ad system. Rewarding coins anyway!",
-            color: "yellow",
+            message: "Error showing ad. Please try again.",
+            color: "red",
           })
         );
-        
-        // Fallback: Reward user anyway if there's a critical error
-        (async () => {
-          try {
-            const userRef = doc(db, "users", user.uid);
-            const userSnap = await getDoc(userRef);
-            
-            if (userSnap.exists()) {
-              const userData = userSnap.data();
-              await updateDoc(userRef, {
-                balance: (userData.balance || 0) + COINS_PER_AD
-              });
-            } else {
-              // Create user document if it doesn't exist
-              await setDoc(userRef, {
-                uid: user.uid,
-                userImage: user.userImage || null,
-                firstName: user.firstName || "Guest",
-                lastName: user.lastName || "User",
-                userName: user.userName || "guest_user",
-                balance: 100 + COINS_PER_AD, // Default starting balance + reward
-                adViews: {
-                  count: 1,
-                  lastViewTime: serverTimestamp(),
-                  periodStartTime: serverTimestamp()
-                }
-              });
-            }
-            
-            checkAdStatus();
-          } catch (fbError) {
-            console.error("Error in critical fallback reward:", fbError);
-            // Final fallback - try with merge
-            try {
-              const userRef = doc(db, "users", user.uid);
-              await setDoc(userRef, {
-                balance: (user.balance || 0) + COINS_PER_AD,
-                uid: user.uid
-              }, { merge: true });
-            } catch (finalError) {
-              console.error("Final fallback error:", finalError);
-            }
-          }
-        })();
       }
     } catch (error) {
-      console.error("Error handling ad view:", error);
+      console.error("Error in ad handling:", error);
       dispatch(
         setShowMessage({
-          message: "Error processing ad view. Please try again.",
+          message: "Error showing ad. Please try again.",
           color: "red",
         })
       );
-      dispatch(setCoinShow(false));
     } finally {
       setIsLoading(false);
     }
   };
 
+  // Return loading state if user data isn't available yet
   if (!user) {
-    return <div className="text-white p-4">Loading user data...</div>;
+    return (
+      <div className="rewarded-ads-container">
+        <p className="text-white">Loading user data...</p>
+      </div>
+    );
   }
 
   return (
     <div className="rewarded-ads-container">
-      <h3 className="rewarded-ads-title">Watch Ads to Earn Coins</h3>
-      
-      <div className="rewarded-ads-info">
-        <p>Earn {COINS_PER_AD} coins for each ad you watch</p>
-        <p>Limit: {MAX_ADS_PER_PERIOD} ads every 24 hours</p>
-        
-        {adsRemaining > 0 ? (
-          <p className="ads-remaining">Ads remaining: {adsRemaining}/{MAX_ADS_PER_PERIOD}</p>
+      <div className="rewarded-ads-status">
+        {nextAdTime ? (
+          <p>Next ad available in: {timeRemaining}</p>
         ) : (
-          <div className="time-remaining">
-            <p>Maximum ads watched</p>
-            <p>Next ad available in: {timeRemaining}</p>
-          </div>
+          <p>Ads remaining today: {adsRemaining}/{MAX_ADS_PER_PERIOD}</p>
         )}
       </div>
-      
       <button
-        className={`rewarded-ads-button ${isAdButtonDisabled ? 'disabled' : ''}`}
+        className={`rewarded-ads-button ${isAdButtonDisabled || isLoading ? 'disabled' : ''}`}
         onClick={handleWatchAd}
         disabled={isAdButtonDisabled || isLoading}
       >
-        {isLoading ? "Loading..." : "Watch Ad to Earn Coins"}
+        {isLoading ? 'Loading...' : `Watch Ad (+${COINS_PER_AD} coins)`}
       </button>
     </div>
   );

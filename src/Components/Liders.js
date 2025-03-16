@@ -7,9 +7,6 @@ function Liders() {
   const user = useSelector(selectUser);
   const topUsers = useSelector(selectTopUsers) || [];
   
-  // Remove the unused function
-  // If you want to keep it, you need to actually use it somewhere
-  
   const formatNumber = (num) => {
     // Ensure num is a number
     num = Number(num);
@@ -55,12 +52,16 @@ function Liders() {
         }`}
       >
         {topUsers.map((topUser, index) => {
-          const { id, balance, firstName, lastName, userName, userImage } = topUser;
+          const { id, balance, firstName, lastName, userName } = topUser;
           
           // Determine display name - prioritize userName for Telegram users
-          const displayName = userName ? 
-            userName : 
-            `${firstName || ""} ${lastName || ""}`.trim() || "User";
+          // If userName starts with @, use it directly, otherwise add @ prefix
+          let displayName;
+          if (userName) {
+            displayName = userName.startsWith('@') ? userName : `@${userName}`;
+          } else {
+            displayName = `${firstName || ""} ${lastName || ""}`.trim() || "User";
+          }
           
           return (
             <div
@@ -77,10 +78,10 @@ function Liders() {
               
               <div className="flex-shrink-0 mr-2">
                 <div className="border-2 border-yellow-700 overflow-hidden flex items-center justify-center rounded-full bg-gray-800 h-10 w-10">
-                  {userImage ? (
+                  {topUser.userImage ? (
                     <img
                       className="w-9 h-9 object-contain"
-                      src={userImage}
+                      src={topUser.userImage}
                       alt={displayName[0].toUpperCase()}
                     />
                   ) : (
