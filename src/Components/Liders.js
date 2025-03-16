@@ -59,8 +59,10 @@ function Liders() {
           let displayName;
           if (userName) {
             displayName = userName.startsWith('@') ? userName : `@${userName}`;
+          } else if (firstName || lastName) {
+            displayName = `${firstName || ""} ${lastName || ""}`.trim();
           } else {
-            displayName = `${firstName || ""} ${lastName || ""}`.trim() || "User";
+            displayName = "User";
           }
           
           return (

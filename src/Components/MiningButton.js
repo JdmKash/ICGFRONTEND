@@ -530,19 +530,21 @@ function MiningButton() {
     <div className="relative w-full mx-4">
       <div className="absolute -top-12 left-0 text-white text-lg bg-gray-800 p-2 rounded">
         Balance: ₿ {formatNumber(balance)}
-      </div>
-      
-      {/* Current mined amount display - always visible */}
-      <div className="absolute -top-24 left-0 right-0 text-white text-sm bg-gray-800 p-2 rounded">
-        <div className="flex justify-between items-center">
-          <span>Mining Speed: ₿ {formatNumber(mineRate)}/s</span>
-          <span>Level: {Math.floor(mineRate * 1000)}</span>
-        </div>
+        
+        {/* Current mined amount display - MOVED BELOW BALANCE */}
         {isMining && (
-          <div className="mt-1 text-center text-yellow-400 font-bold">
+          <div className="text-sm text-yellow-400 font-bold mt-1">
             Currently Mined: ₿ {formatNumber(currentMined || mined)}
           </div>
         )}
+      </div>
+      
+      {/* Mining info display - smaller and repositioned */}
+      <div className="absolute -top-3 left-0 text-white text-xs bg-gray-800 p-1 rounded">
+        <div className="flex items-center space-x-2">
+          <span>Speed: ₿ {formatNumber(mineRate)}/s</span>
+          <span>Level: {Math.floor(mineRate * 1000)}</span>
+        </div>
       </div>
       
       {!showUpgrade && !isMining && (
