@@ -1,33 +1,31 @@
 import React from "react";
 import { useSelector } from "react-redux";
-import money from "../Assets/android-chrome-512x512.png";
-import LinkButton from "../Components/LinkButton";
 import { selectUser } from "../features/userSlice";
+import RewardedAdsButton from "../Components/RewardedAdsButton";
+import "../styles/Earn.css";
 
 function Earn() {
   const user = useSelector(selectUser);
-  
+
+  if (!user) {
+    return <div className="text-white p-4">Loading user data...</div>;
+  }
+
   return (
-    <div className="text-white mb-24">
-      <div className="flex items-center justify-center py-8">
-        <div className="rounded-full p-4">
-          <img className="w-28 h-28 object-contain" src={money} alt="M" />
-        </div>
+    <div className="earn-container">
+      <h2 className="earn-title">Earn Coins</h2>
+      
+      <div className="earn-section">
+        <h3>Watch Ads to Earn</h3>
+        <p>Watch rewarded ads to earn coins. Limited to 10 ads every 12 hours.</p>
+        <RewardedAdsButton />
       </div>
-      <p className="text-center font-bold text-3xl">Earn coins</p>
-      <div className="mx-4 mt-8">
-        <p className="text-lg font-bold mb-4">Important tasks</p>
-        {/* Referral Task */}
-        <LinkButton
-          image={'referral'}
-          name={
-            Object.keys(user.referrals || {}).length >= 10
-              ? `You invited ${Object.keys(user.referrals || {}).length} friends!`
-              : `Invite ${10 - Object.keys(user.referrals || {}).length} friends!`
-          }
-          amount={100000}
-          link={"referral"}
-        />
+      
+      {/* Other earning methods can be added here */}
+      <div className="earn-section">
+        <h3>Invite Friends</h3>
+        <p>Earn 10% of what your referrals mine!</p>
+        {/* Referral component would go here */}
       </div>
     </div>
   );
