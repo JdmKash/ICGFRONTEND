@@ -2,6 +2,7 @@ import React from "react";
 import { useSelector } from "react-redux";
 import { selectUser } from "../features/userSlice";
 import RewardedAdsButton from "../Components/RewardedAdsButton";
+import InterstitialAdButton from "../Components/InterstitialAdButton";
 import "../styles/Earn.css";
 
 function Earn() {
@@ -18,7 +19,10 @@ function Earn() {
       <div className="earn-section">
         <h3>Watch Ads to Earn</h3>
         <p>Watch rewarded ads to earn coins. Limited to 10 ads every 24 hours.</p>
-        <RewardedAdsButton />
+        <div className="ad-buttons-container">
+          <RewardedAdsButton />
+          <InterstitialAdButton />
+        </div>
       </div>
       
       {/* Other earning methods can be added here */}
