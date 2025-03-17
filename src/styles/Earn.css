@@ -33,3 +33,11 @@
   color: #d1d5db;
   font-size: 0.95rem;
 }
+
+.ad-buttons-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+}
+
