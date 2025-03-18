@@ -2,6 +2,7 @@ import { createSlice } from "@reduxjs/toolkit";
 
 const initialState = {
   value: [],
+  lastUpdated: null
 };
 
 export const topUsersSlice = createSlice({
@@ -10,6 +11,7 @@ export const topUsersSlice = createSlice({
   reducers: {
     setTopUsers: (state, action) => {
       state.value = action.payload;
+      state.lastUpdated = Date.now();
     },
   },
 });

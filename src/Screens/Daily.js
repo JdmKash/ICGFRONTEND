@@ -1,111 +1,15 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { selectUser } from "../features/userSlice";
+import { selectUser, setUser } from "../features/userSlice";
 import { doc, getDoc, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
 import { db } from "../firebase";
 import { setShowMessage } from "../features/messageSlice";
+import { updateBalance } from "../features/balanceSlice";
+import { setCoinShow } from "../features/coinShowSlice";
 
 function Daily() {
-    const dispatch = useDispatch();
-    const user = useSelector(selectUser);
-    const [claimAmount, setClaimAmount] = useState(10);
-    const [claimDay, setClaimDay] = useState(1);
-    const [isClaimed, setIsClaimed] = useState(false);
-    const [claimDisabled, setClaimDisabled] = useState(false);
-    
-    const formatNumber = (num) => {
-        // Convert the number to a string with a fixed number of decimal places
-        let numStr = num.toFixed(3);
-        // Split the number into integar and decimal parts
-        let [intPart, decPart] = numStr.split(".");
-        // Add thousand seprators to the integer part
-        intPart = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-        // If the number is less than 0.01, keep 3 decimal places
-        if (num < 0.01) {
-          return `${intPart},${decPart}`;  
-        }
-        // For other numbers, keep 3 decimal places
-        decPart = decPart.slice(0, 2);
-        // Always return the formatted number with 2 decimal places
-        return `${intPart}, ${decPart}`;
-    };
-    
-    // Wrap calculateClaimAmount in useCallback to prevent infinite loop
-    const calculateClaimAmount = useCallback(async () => {
-      if (!user) return;
-      
-      try {
-        // Check if user document exists
-        const userRef = doc(db, "users", user.uid);
-        const userSnap = await getDoc(userRef);
-        
-        if (!userSnap.exists()) {
-          // Create user document if it doesn't exist
-          await setDoc(userRef, {
-            uid: user.uid,
-            userImage: user.userImage || null,
-            firstName: user.firstName || "Guest",
-            lastName: user.lastName || "User",
-            userName: user.userName || "guest_user",
-            balance: 100, // Default starting balance
-            mineRate: 0.001,
-            isMining: false,
-            miningStartedTime: null,
-            daily: {
-              claimedTime: null,
-              claimedDay: 0,
-            }
-          });
-          
-          setIsClaimed(false);
-          setClaimDay(1);
-          setClaimAmount(10);
-          return;
-        }
-        
-        const userData = userSnap.data();
-        
-        if (!userData.daily || !userData.daily.claimedTime) {
-          setIsClaimed(false);
-          setClaimDay(1);
-          setClaimAmount(10);
-          return;
-        }
-        
-        const lastClaimTime = userData.daily.claimedTime.toDate();
-        const now = new Date();
-        const hoursDiff = (now - lastClaimTime) / (1000 * 3600);
-        
-        if (hoursDiff < 24) {
-          setIsClaimed(true);
-          setClaimDay(userData.daily.claimedDay || 1);
-        } else if (hoursDiff >= 48) {
-          if (!claimDisabled) {
-            dispatch(
-              setShowMessage({
-                message: "You skipped one day",
-                color: "red",
-              })
-            );  
-          }
-          setIsClaimed(false);
-          setClaimDay(1);
-          setClaimAmount(10);
-        } else {
-          setIsClaimed(false);
-          const newDay = (userData.daily.claimedDay || 0) + 1;
-          setClaimDay(newDay);
-          if (newDay <= 10) {
-            setClaimAmount(10 * Math.pow(2, newDay - 1));  
-          } else {
-            setClaimAmount(10000);  
-          }  
-        }
-      } catch (error) {
-        console.error("Error calculating claim amount:", error);
-      }
-    }, [user, dispatch, claimDisabled]); // Include all dependencies
-    
+    // Rest of your code remains the same...
+
     const handleClaim = async () => {
       try {
         setClaimDisabled(true);
@@ -122,13 +26,14 @@ function Daily() {
         
         if (!userSnap.exists()) {
           // Create user document if it doesn't exist
+          const newBalance = 100 + claimAmount;
           await setDoc(userRef, {
             uid: user.uid,
             userImage: user.userImage || null,
             firstName: user.firstName || "Guest",
             lastName: user.lastName || "User",
             userName: user.userName || "guest_user",
-            balance: 100 + claimAmount, // Default starting balance + reward
+            balance: newBalance, // Default starting balance + reward
             mineRate: 0.001,
             isMining: false,
             miningStartedTime: null,
@@ -138,9 +43,25 @@ function Daily() {
             }
           });
           
+          // Update Redux state - CRITICAL PART
+          dispatch(updateBalance(newBalance));
+          
+          // Also update user object in Redux to maintain consistency
+          dispatch(setUser({
+            ...user,
+            balance: newBalance,
+            daily: {
+              claimedTime: new Date(),
+              claimedDay: 1,
+            }
+          }));
+          
+          // Show coin animation
+          dispatch(setCoinShow(true));
+          
           dispatch(
             setShowMessage({
-              message: `Successfully claimed ₿ ${formatNumber(claimAmount)}! New balance: ₿ ${formatNumber(100 + claimAmount)}`,
+              message: `Successfully claimed ₿ ${formatNumber(claimAmount)}! New balance: ₿ ${formatNumber(newBalance)}`,
               color: "green",
             })
           );
@@ -220,6 +141,22 @@ function Daily() {
             },
           });
           
+          // Update Redux state - CRITICAL PART
+          dispatch(updateBalance(newBalance));
+          
+          // Also update user object in Redux to maintain consistency
+          dispatch(setUser({
+            ...user,
+            balance: newBalance,
+            daily: {
+              claimedTime: new Date(),
+              claimedDay: claimDayX,
+            }
+          }));
+          
+          // Show coin animation
+          dispatch(setCoinShow(true));
+          
           // Show success message with claimed amount and new balance
           dispatch(
             setShowMessage({
@@ -238,14 +175,32 @@ function Daily() {
         // Fallback: Try to update with merge option
         try {
           const userRef = doc(db, "users", user.uid);
+          const newBalance = (user.balance || 0) + claimAmount;
+          
           await setDoc(userRef, {
-            balance: (user.balance || 0) + claimAmount,
+            balance: newBalance,
             uid: user.uid,
             daily: {
               claimedTime: serverTimestamp(),
               claimedDay: claimDay,
             }
           }, { merge: true });
+          
+          // Update Redux state - CRITICAL PART
+          dispatch(updateBalance(newBalance));
+          
+          // Also update user object in Redux to maintain consistency
+          dispatch(setUser({
+            ...user,
+            balance: newBalance,
+            daily: {
+              claimedTime: new Date(),
+              claimedDay: claimDay,
+            }
+          }));
+          
+          // Show coin animation
+          dispatch(setCoinShow(true));
           
           dispatch(
             setShowMessage({
@@ -270,51 +225,7 @@ function Daily() {
       }
     };
     
-    useEffect(() => {
-      calculateClaimAmount();
-      
-      // Set up interval to recalculate claim amount every minute
-      const interval = setInterval(() => {
-        calculateClaimAmount();
-      }, 60000);
-      
-      return () => clearInterval(interval);
-    }, [calculateClaimAmount]); // Added calculateClaimAmount to dependency array
-    
-    return (
-      <div className="text-white">
-        <div className="flex items-center justify-center py-10">
-          <div className="rounded-full p-4">
-            <img className="w-28 h-28 object-contain" src={require("../Assets/charge.png")} alt="Daily Reward" />
-          </div>  
-        </div>
-        <p className="text-center font-bold text-3x1">Daily rewards</p>
-        <p className="text-center text-lg mt-2">
-          Here you can claim your rewards  
-        </p>
-        <p className="text-center text-x1 font-bold mt-4">(Day {claimDay})</p>
-        <div className="mx-10 mt-20">
-          {isClaimed ? (
-            <button
-              disabled
-              className="w-full bg-gray-500 text-white font-bold py-2 px-4 rounded cursor-not-allowed"
-            >
-              Claimed for today
-            </button>  
-          ) : (
-            <button
-              disabled={claimDisabled}
-              onClick={handleClaim}
-              className={`w-full ${
-                claimDisabled ? "bg-gray-500" : "bg-blue-500 hover:bg-blue-700"
-              } text-white font-bold py-2 px-4 rounded`}  
-            >
-              Claim ₿ {formatNumber(claimAmount)}  
-            </button>
-          )}    
-        </div>
-      </div>
-    );
+    // Rest of your code remains the same...
 }
 
 export default Daily;

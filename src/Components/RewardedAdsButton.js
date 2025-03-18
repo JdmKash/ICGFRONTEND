@@ -148,6 +148,11 @@ function RewardedAdsButton() {
             
             // Update balance in real-time
             dispatch(updateBalance(100));
+
+            dispatch(setUser({
+              ...user,
+              balance: newBalance
+            }));
             
             dispatch(
               setShowMessage({
@@ -177,11 +182,21 @@ function RewardedAdsButton() {
             // Add coins to user's balance
             balance: newBalance
           };
+
+          dispatch(setUser({
+            ...user,
+            balance: newBalance
+          }));
           
           await updateDoc(userRef, updateData);
           
           // Update balance in real-time
           dispatch(updateBalance(newBalance));
+
+          dispatch(setUser({
+            ...user,
+            balance: newBalance
+          }));
           
           // Show success message
           dispatch(
@@ -207,6 +222,11 @@ function RewardedAdsButton() {
             
             // Update balance in real-time
             dispatch(updateBalance(newBalance));
+
+            dispatch(setUser({
+              ...user,
+              balance: newBalance
+            }));
             
             dispatch(
               setShowMessage({
@@ -280,6 +300,11 @@ function RewardedAdsButton() {
               // Update balance in real-time
               dispatch(updateBalance(newBalance));
               
+              dispatch(setUser({
+                ...user,
+                balance: newBalance
+              }));
+
               dispatch(
                 setShowMessage({
                   message: `Congratulations! You earned ${COINS_PER_AD} coins!`,
@@ -312,6 +337,11 @@ function RewardedAdsButton() {
             
             // Update balance in real-time
             dispatch(updateBalance(newBalance));
+
+            dispatch(setUser({
+              ...user,
+              balance: newBalance
+            }));
             
             // Show success message and coin animation
             dispatch(setCoinShow(true));
@@ -339,6 +369,11 @@ function RewardedAdsButton() {
               // Update balance in real-time
               dispatch(updateBalance(newBalance));
               
+              dispatch(setUser({
+                ...user,
+                balance: newBalance
+              }));
+
               dispatch(
                 setShowMessage({
                   message: `Coins awarded despite error!`,
@@ -382,6 +417,11 @@ function RewardedAdsButton() {
               
               // Update balance in real-time
               dispatch(updateBalance(newBalance));
+              
+              dispatch(setUser({
+                ...user,
+                balance: newBalance
+              }));
               
               dispatch(
                 setShowMessage({
