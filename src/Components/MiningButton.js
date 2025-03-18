@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { selectUser, setUser } from "../features/userSlice";
-import { selectCalculate, startMining, stopMining, resetMining } from "../features/calculateSlice";
+import { selectCalculated, startMining, stopMining, resetMining } from "../features/calculateSlice";
 import { setShowMessage } from "../features/messageSlice";
 import { doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../firebase";
