@@ -1,0 +1,51 @@
+.liders-container {
+    padding: 1rem;
+  }
+  
+  .liders-title {
+    text-align: center;
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin-bottom: 1rem;
+  }
+  
+  .user-rank {
+    text-align: center;
+    margin-bottom: 1rem;
+  }
+  
+  .leaderboard {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .leaderboard-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.5rem;
+    border-radius: 0.25rem;
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+  
+  .current-user {
+    background-color: rgba(59, 130, 246, 0.3);
+  }
+  
+  .rank {
+    font-weight: bold;
+    margin-right: 0.5rem;
+  }
+  
+  .name {
+    flex-grow: 1;
+  }
+  
+  .balance {
+    font-weight: bold;
+  }
+  
+  .loading, .no-data {
+    text-align: center;
+    padding: 1rem;
+  }
