@@ -8,7 +8,37 @@ import { updateBalance } from "../features/balanceSlice";
 import { setCoinShow } from "../features/coinShowSlice";
 
 function Daily() {
-    // Rest of your code remains the same...
+    const dispatch = useDispatch();
+    const user = useSelector(selectUser);
+    
+    // Add missing state variables
+    const [claimDisabled, setClaimDisabled] = useState(false);
+    const [isClaimed, setIsClaimed] = useState(false);
+    const [claimDay, setClaimDay] = useState(1);
+    const [claimAmount, setClaimAmount] = useState(10);
+    
+    // Add the formatNumber utility function
+    const formatNumber = (num) => {
+      // Convert the number to a string with a fixed number of decimal places
+      let numStr = num.toFixed(3);
+      
+      // Split the number into the integer and decimal parts
+      let [intPart, decPart] = numStr.split(".");
+      
+      // Add thousand separators to the integer part
+      intPart = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+      
+      // If the number is less than 0.01 keep 3 decimal places
+      if (num < 0.01) {
+        return `${intPart},${decPart}`;  
+      }
+      
+      // For other numbers, keep 2 decimal places
+      decPart = decPart.slice(0, 2);
+      
+      // Always return the formatted number with 2 decimal places
+      return `${intPart},${decPart}`;
+    };
 
     const handleClaim = async () => {
       try {
@@ -31,7 +61,7 @@ function Daily() {
             uid: user.uid,
             userImage: user.userImage || null,
             firstName: user.firstName || "Guest",
-            lastName: user.lastName || "User",
+            lastName: user.lastName || "Guest",
             userName: user.userName || "guest_user",
             balance: newBalance, // Default starting balance + reward
             mineRate: 0.001,
@@ -225,7 +255,28 @@ function Daily() {
       }
     };
     
-    // Rest of your code remains the same...
+    // Add a useEffect to initialize claim amount and day based on user data
+    useEffect(() => {
+      if (user && user.daily) {
+        setClaimDay(user.daily.claimedDay || 1);
+        const day = user.daily.claimedDay || 1;
+        setClaimAmount(day <= 10 ? 10 * Math.pow(2, day - 1) : 10000);
+      }
+    }, [user]);
+    
+    return (
+      <div className="daily-rewards-container">
+        {/* Your UI components here */}
+        <button 
+          onClick={handleClaim}
+          disabled={claimDisabled || isClaimed}
+          className={`claim-button ${claimDisabled || isClaimed ? 'disabled' : 'active'}`}
+        >
+          {claimDisabled ? 'Processing...' : isClaimed ? 'Claimed' : `Claim ₿ ${formatNumber(claimAmount)}`}
+        </button>
+      </div>
+    );
 }
 
 export default Daily;
+
